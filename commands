@@ -26,15 +26,6 @@ REFERENCE_ROOT = os.getenv('MKA_REFERENCE_ROOT', '/lab/data/reference')
 
 prefix_reference_root = functools.partial(os.path.join, REFERENCE_ROOT)
 
-BWA_REFERENCES = {
-    'dm3': prefix_reference_root('fly/dm3/index/bwa/0.7.12/dm3'),
-    'dm6': prefix_reference_root('fly/dm6/index/bwa/0.7.12/dm6'),
-    'hg19': prefix_reference_root('human/hg19/index/bwa/0.7.12/hg19'),
-    'mm9': prefix_reference_root('mouse/mm9/index/bwa/0.7.12/mm9'),
-    'mm10': prefix_reference_root('mouse/mm10/index/bwa/0.7.12/mm10'),
-    'rn5': prefix_reference_root('rat/rn5/index/bwa/0.7.12/rn5'),
-}
-
 AUTOSOMAL_REFERENCES = {
     'dm3': ['chr2L', 'chr2LHet', 'chr2R', 'chr2RHet', 'chr3L', 'chr3LHet', 'chr3R', 'chr3RHet', 'chr4'],
     'dm6': ['chr2L', 'chr2R', 'chr3L', 'chr3R', 'chr4'],
@@ -60,14 +51,6 @@ TSS_REFERENCES = {
 
 FASTQ_RE = re.compile('\.f(ast)?q(\.gz)?$')
 
-MACS2_GENOME_SIZES = {
-    'dm3': 'dm',
-    'hg19': 'hs',
-    'mm9': 'mm',
-    'mm10': 'mm',
-    'rn5': 'mm'
-}
-
 ORGANISMS = {
     'dm3': 'fly',
     'dm6': 'fly',
@@ -81,18 +64,19 @@ ANALYSIS_NAME = "run_1890_pipeline_test"
 DESCRIPTION = """Test STARR-seq pipeline for DNA and cDNA counts from input files"""
 CONTROL_PATH = "/lab/work/collinwa/scifair_1718/run_1890_pipeline_test"
 ANALYSIS_PATH = "/lab/work/collinwa/scifair_1718/run_1890_pipeline_test"
+STARCODE_PATH = "/home/collinwa/lab/starcode"
+DNA_COUNTS_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/no_qc_barcode_counts.txt.gz"
+
 DATA_PATH = os.path.join(ANALYSIS_PATH, 'data')
 WORK_PATH = os.path.join(ANALYSIS_PATH, 'work')
 PIPELINE = os.path.join(ANALYSIS_PATH, 'pipeline')
 
-ATAQV_DIR = os.path.join(WORK_PATH, 'ataqv')
-BWA_DIR = os.path.join(WORK_PATH, 'bwa')
-FASTQC_DIR = os.path.join(WORK_PATH, 'fastqc')
-MACS2_DIR = os.path.join(WORK_PATH, 'macs2')
-MD_DIR = os.path.join(WORK_PATH, 'mark_duplicates')
-PRUNE_DIR = os.path.join(WORK_PATH, 'prune')
-TRIM_ADAPTER_DIR = os.path.join(WORK_PATH, 'trim_adapters')
-GB_DIR = os.path.join(WORK_PATH, 'gb')
+CDNA_DIR = os.path.join(WORK_PATH, 'cdna_counts')
+DUPLICATE_DIR = os.path.join(WORK_PATH, 'duplicates_data')
+TABLE_DIR = os.path.join(WORK_PATH, 'count_table')
+CODE_DIR = os.path.join(WORK_PATH, 'code')
+
+INPUT_DNA_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/dna_counts/no_qc_barcode_counts.txt.gz"
 
 # By default, we use ionice and limit the number of particularly
 # I/O-intensive jobs that run at once, to keep the machine
@@ -104,8 +88,21 @@ LIMIT_IO = 0
 # Library dictionary
 #
 
-LIBRARIES = {'': {'sequencing_date': '', 'sequencing_platform_model': '', 'sequencing_center': '', 'library': '', 'description': '', 'analysis_specific_options': {}, 'readgroups': {'': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read2.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read2.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read2.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85565_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85565_run_1890.read2.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85566_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85566_run_1890.read2.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85567_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85567_run_1890.read2.fq.gz']}, 'sample': '', 'reference_genome': 'hg19', 'url': '', 'sequencing_platform': ''}}
-
+LIBRARIES = {'': {'sequencing_date': '',
+                  'reference_genome': 'hg19',
+                  'sequencing_center': '', 'sample': '',
+                  'analysis_specific_options': {},
+                  'sequencing_platform': '',
+                  'sequencing_platform_model': '',
+                  'url': '',
+                  'readgroups': { '1': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read2.fq.gz'],
+                                  '2': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read2.fq.gz'],
+                                  '3': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read2.fq.gz']
+                                },
+                  'library': '',
+                  'description': 'Rep1'
+                 }
+            }
 SAMPLES = {}
 for library in LIBRARIES.values():
     SAMPLES.setdefault(library['sample'], []).append(library)
@@ -279,490 +276,183 @@ def make_read_group_header(library, id):
     return header
 
 
-def fastqc():
-    """Run FastQC on all input libraries."""
+def starcode_pairs(threads = 4):
+    """Run Starcode on all extracted barcodes and/or umis."""
 
-    mkdir(FASTQC_DIR)
+    printp("""\n#\n# run starcode on trimmed data\n#""")
+    printp("""\n# drmr:label starcode""")
+    printp("""\n# drmr:job time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
 
-    printp("""\n#\n# run FastQC on initial data\n#""")
-    printp("""\n# drmr:label fastqc""")
-    printp("""\n# drmr:job time_limit=2h working_directory={}""".format(FASTQC_DIR))
-
-    for index, f in enumerate(iterate_all_files(), 1):
-        symlink(f, FASTQC_DIR)
-        printp("""fastqc {}""".format(os.path.basename(f)), timed=True, ioniced=True)
-        if LIMIT_IO and index % LIMIT_IO == 0:
-            # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
-            printp("""\n# drmr:wait""")
-
-
-def trim_adapters():
-    #
-    # Trim adapter sequence from the FASTQ files
-    #
-
-    mkdir(TRIM_ADAPTER_DIR)
-
-    printp("""\n#\n# trim adapter sequence from reads\n#""")
-    printp("""\n# drmr:label trim-adapters""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(TRIM_ADAPTER_DIR))
-
+    duplicate = os.path.join(CODE_DIR, 'adjust_duplicates.py')
     index = 0
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
-            for f in sorted(files):
-                symlink(os.path.join(DATA_PATH, os.path.basename(f)), TRIM_ADAPTER_DIR)
-            bases = ' '.join(os.path.basename(f) for f in sorted(files))
-            printp("""cta {}""".format(bases), timed=True, ioniced=True)
+            basename = os.path.splitext(files[0])[0]
+            filename = os.path.join(DUPLICATE_DIR, "{}_pairs.txt.gz".format(basename))
+            printp("""\nzcat {} | {}./starcode -d 0 -t {} | python {} | sort -k1 | gzip -c > {}\n""".format(filename, STARCODE_PATH, threads, duplicate, "{}_duplicate_counts.txt.gz".format(os.path.join(DUPLICATE_DIR,os.path.basename(basename)))))
             index += 1
 
             if LIMIT_IO and index % LIMIT_IO == 0:
                 # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                 printp("""\n# drmr:wait""")
 
+def trim_barcodes_umis():
+    #
+    # Trim adapter sequence from the FASTQ files
+    #
 
-def bwa(threads=4, algorithm='MEM', time_limit='8h'):
-    """
-    Aligns reads to the reference genome with BWA.
+    mkdir(DUPLICATE_DIR)
 
-    The BWA algorithm can be specified as 'MEM', 'backtrack', or
-    'auto', to choose the algorithm based on the library read size.
-    """
+    printp("""\n#\n# extract barcode umi sequence from file\n#""")
+    printp("""\n# drmr:label extract_pairs""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
-    mkdir(BWA_DIR)
-
-    printp("""# drmr:label bwa\n""")
-    printp("""# drmr:job nodes=1 processors={} working_directory={} time_limit={}""".format(threads, BWA_DIR, time_limit))
-
-    backtrack_readgroups = []
-    for library_name, library in sorted(LIBRARIES.items()):
-        reference_genome = library['reference_genome']
-        bwa_reference = BWA_REFERENCES[reference_genome]
-        if not (os.path.exists(bwa_reference) or os.path.exists(bwa_reference + '.bwt')):
-            print('BWA reference "{}" does not exist.'.format(bwa_reference), file=sys.stderr)
-            sys.exit(1)
-
+    index = 0
+    for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
-            fastq_files = sorted([rename_fastq('.trimmed.fq.gz', os.path.basename(f)) for f in files])
-            for f in fastq_files:
-                symlink(os.path.join(TRIM_ADAPTER_DIR, f), BWA_DIR)
 
-            if algorithm == 'auto':
-                algorithm = 'MEM'
-                try:
-                    with open_maybe_gzipped(files[0]) as f:
-                        next(f)
-                        seq = next(f)
-                        read_length = len(seq)
-                        if read_length < 70:
-                            algorithm = 'backtrack'
-                    printp("""# Library {} read group {} read length: {}""".format(library_name, rg, read_length))
-                except Exception as e:
-                    printp("""# Could not determine read length for library {} read group {}: {}""".format(library_name, rg, e))
+            trim = os.path.join(CODE_DIR, 'trim_cdna.py')
 
-                printp("""# Using bwa's {} algorithm.""".format(algorithm))
-
-            printp("""\n#\n# align reads in {library_name} read group {rg} to {reference_genome} with bwa {algorithm}\n#\n""".format(**locals()))
-
-            if algorithm == 'MEM':
-                bwa_input_files = ' '.join(fastq_files)
-                read_group_header = make_read_group_header(library, rg)
-                bam = make_read_group_file(library_name, rg, '.bam')
-                printp("""bwa mem -M -R '{read_group_header}' -t {threads} {bwa_reference} {bwa_input_files} | samtools sort -m 1g -@ {threads} -O bam -T {library_name}___{rg}.sort -o {bam} -""".format(**locals()), timed=True, ioniced=True)
-
-            elif algorithm == 'backtrack':
-                backtrack_readgroups.append((library, rg, fastq_files))
-                for input_file in fastq_files:
-                    output_file = input_file.replace('.trimmed.fq.gz', '.sai')
-                    printp("""bwa aln -t {threads} -f {output_file} {bwa_reference} {input_file}""".format(**locals()), timed=True, ioniced=True)
-
-    printp("""\n# drmr:wait""")
-
-    if backtrack_readgroups:
-        printp("""\n#\n# Create the BAM files.\n#\n""")
-        printp("""# drmr:job nodes=1 processors={} working_directory={} time_limit={}""".format(threads, BWA_DIR, time_limit))
-
-    for library, rg, fastq_files in backtrack_readgroups:
-        if len(fastq_files) == 1:
-            bwa_command = 'samse'
-        elif len(fastq_files) == 2:
-            bwa_command = 'sampe'
-        else:
-            print('Too many FASTQ files for library {}'.format(library['library']), file=sys.stderr)
-            sys.exit(1)
-
-        fastq = ' '.join(fastq_files)
-        sai = ' '.join([f.replace('.trimmed.fq.gz', '.sai') for f in fastq_files])
-        read_group_header = make_read_group_header(library, rg)
-        bam = make_read_group_file(library['library'], rg, '.bam')
-        printp("""bwa {bwa_command} -r '{read_group_header}' {bwa_reference} {sai} {fastq} | samtools sort -m 1g -@ {threads} -O bam -T {library_name}___{rg}.sort -o {bam}""".format(**locals()), timed=True, ioniced=True)
-
-        printp("""\n# drmr:wait""")
-
-        printp("""\n#\n# Delete output files which are not needed after bwa has run\n#""")
-        printp("""\n# drmr:label clean-after-bwa""")
-
-        printp("""\n# drmr:job time_limit=00:15:00 working_directory={}""".format(BWA_DIR))
-        printp("""rm -f {}/*.sai""".format(BWA_DIR))
-
-
-def mark_duplicates():
-    """
-    Mark duplicates in each library BAM file.
-    """
-
-    mkdir(MD_DIR)
-
-    printp("""# drmr:label mark-duplicates\n""")
-    printp("""# drmr:job nodes=1 processors=2 memory=8g working_directory={} time_limit=8h""".format(MD_DIR))
-
-    for library_name, library in sorted(LIBRARIES.items()):
-        for rg in sorted(library['readgroups'].keys()):
-            input_bam = make_read_group_file(library_name, rg, '.bam')
-            output_bam = make_read_group_file(library_name, rg, '.md.bam')
-            symlink(os.path.join(BWA_DIR, input_bam), MD_DIR)
-            printp("""picard -m 4g MarkDuplicates I={input_bam} O={output_bam} ASSUME_SORTED=true METRICS_FILE={library_name}___{rg}.markdup.metrics VALIDATION_STRINGENCY=LENIENT TMP_DIR=.""".format(**locals()), timed=True, ioniced=True)
-
-    printp("""\n# drmr:wait""")
-    printp("""\n#\n# index the BAM files with marked duplicates, for pruning\n#\n""")
-    printp("""\n# drmr:label index-md-bams\n""")
-
-    for library_name, library in sorted(LIBRARIES.items()):
-        for rg in sorted(library['readgroups'].keys()):
-            bam = make_read_group_file(library_name, rg, '.md.bam')
-            printp("""samtools index {bam}""".format(**locals()), timed=True, ioniced=True)
-
-
-def prune(mapq=30):
-    """
-    Prune the BAM files down to properly paired and uniquely mapped
-    autosomal alignments with good quality, and remove all duplicates
-    """
-
-    mkdir(PRUNE_DIR)
-
-    printp("""\n# drmr:label prune\n""")
-    printp("""# drmr:job nodes=1 processors=1 memory=4g time_limit=4h working_directory={}""".format(PRUNE_DIR))
-
-    for library_name, library in sorted(LIBRARIES.items()):
-        for rg in sorted(library['readgroups'].keys()):
-            symlink(os.path.join(MD_DIR, make_read_group_file(library_name, rg, '.md.bam')), PRUNE_DIR)
-            symlink(os.path.join(MD_DIR, make_read_group_file(library_name, rg, '.md.bam.bai')), PRUNE_DIR)
-
-    #
-    # samtools filters:
-    #   -f 3: keep properly paired and mapped reads
-    #   -F 4: filter out unmapped reads
-    #   -F 8: filter out unmapped mates
-    #   -F 256: filter out secondary reads
-    #   -F 1024: filter out duplicates marked by Picard above
-    #   -F 2048: filter out supplementary reads
-    #
-    printp("""\n#\n# prune the BAM files with marked duplicates down to properly paired""")
-    printp("""# and mapped primary autosomal alignments of good quality, for peak calling\n#\n""")
-
-    PRUNE_TEMPLATE = """samtools view -b -h -f 3 -F 4 -F 8 -F 256 -F 1024 -F 2048 -q {mapq} {input_bam} {autosomes} > {output_bam}"""
-
-    for library_name, library in sorted(LIBRARIES.items()):
-        autosomes = ' '.join(AUTOSOMAL_REFERENCES[library['reference_genome']])
-        for rg in sorted(library['readgroups'].keys()):
-            input_bam = make_read_group_file(library_name, rg, '.md.bam')
-            output_bam = make_read_group_file(library_name, rg, '.pruned.bam')
-            printp(PRUNE_TEMPLATE.format(**locals()), timed=True, ioniced=True)
-
-
-def compress_macs2_output(prefix, ioniced=True):
-    maybe_gzip("{}.broad_peaks.broadPeak".format(prefix), ioniced)
-    maybe_gzip("{}.broad_peaks.gappedPeak".format(prefix), ioniced)
-    maybe_gzip("{}.broad_control_lambda.bdg".format(prefix), ioniced)
-    maybe_gzip("{}.broad_treat_pileup.bdg".format(prefix), ioniced)
-
-
-def exclude_blacklisted_peaks(prefix, reference_genome):
-    if reference_genome in EXCLUDED_REGIONS:
-        excluded_region_files = []
-        for excluded_region_file in EXCLUDED_REGIONS[reference_genome]:
-            if os.path.isfile(excluded_region_file):
-                excluded_region_files.append(excluded_region_file)
-            else:
-                print("""Excluded region file {} for reference genome {} does not exist. It cannot be used to filter MACS2 output.""".format(excluded_region_file, reference_genome), file=sys.stderr)
-
-        exclude_commands = ' | '.join(['intersectBed -a stdin -b {} -v '.format(erf) for erf in excluded_region_files])
-        if exclude_commands:
-            printp("""zcat {prefix}.broad_peaks.broadPeak.gz | {exclude_commands} | gzip -c > {prefix}.broad_peaks.broadPeak.noblacklist.gz""".format(**locals()))
-
-
-def macs2(shift=-100, extsize=200, exclude_blacklisted_regions=False, call_libraries=False, call_samples=False):
-    """
-    Call peaks with MACS2.
-    """
-
-    mkdir(MACS2_DIR)
-
-    printp("""\n#\n# peak calling\n#""")
-
-    printp("""\n#\n# call broad peaks (keeping dups in case of merged files)\n#\n""")
-    printp("""\n# drmr:job nodes=1 processors=1 memory=8g working_directory={} time_limit=4h""".format(MACS2_DIR))
-
-    MACS2_BROAD_PEAK_TEMPLATE = """macs2 callpeak -t {{input_bam}} -f BAM -n {{prefix}}.broad -g {{macs2_genome_size}} --nomodel --shift {shift} --extsize {extsize} -B --broad --keep-dup all > {{prefix}}.macs2.out 2>&1""".format(**locals())
-
-    printp("""# drmr:label macs2-readgroups\n""")
-    for library_name, library in sorted(LIBRARIES.items()):
-        macs2_genome_size = MACS2_GENOME_SIZES[library['reference_genome']]
-        for rg in sorted(library['readgroups'].keys()):
-            input_bam = make_read_group_file(library_name, rg, '.pruned.bam')
-            prefix = make_read_group_file(library_name, rg)
-            symlink(os.path.join(PRUNE_DIR, input_bam), MACS2_DIR)
-            printp(MACS2_BROAD_PEAK_TEMPLATE.format(**locals()), timed=True, ioniced=True)
-
-    # If asked to call peaks on libraries, make a pruned BAM for each
-    # then run MACS2 on those.
-    if call_libraries:
-        printp("""# drmr:job nodes=1 processors=1 memory=4g time_limit=4h working_directory={}""".format(PRUNE_DIR))
-        printp("""\n# drmr:label make-pruned-libraries\n""")
-        for index, (library_name, library) in enumerate(sorted(LIBRARIES.items()), 1):
+            printp("""\npython {} --read1 {} --read3 {} | gzip -c > {}_pairs.txt.gz\n""".format(trim, *files, os.path.join(DUPLICATE_DIR, os.path.join(DUPLICATE_DIR, os.path.basename(os.path.splitext(files[0])[0])))), timed=True, ioniced=True)
+            
+            index += 1
             if LIMIT_IO and index % LIMIT_IO == 0:
                 # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                 printp("""\n# drmr:wait""")
 
-            printp("""\nsamtools merge -f {}.library.pruned.bam {}""".format(library_name, ' '.join(make_read_group_file(library_name, rg, '.pruned.bam') for rg in sorted(library['readgroups'].keys()))), ioniced=True)
+def extract_barcodes():
+    printp("""\n#\n# get the raw barcodes counts from the cDNA\n#""")
+    printp("""\n# drmr:label extract_raw_barcodes""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    
+    index = 0
 
-        printp("""\n# drmr:wait""")
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
 
-        printp("""\n# drmr:job nodes=1 processors=1 memory=8g working_directory={} time_limit=4h""".format(MACS2_DIR))
-        printp("""\n# drmr:label macs2-libraries\n""")
-        for library_name, library in sorted(LIBRARIES.items()):
-            input_bam = '{}.library.pruned.bam'.format(library_name)
-            prefix = library_name
-            symlink(os.path.join(PRUNE_DIR, input_bam), MACS2_DIR)
-            printp(MACS2_BROAD_PEAK_TEMPLATE.format(**locals()), timed=True, ioniced=True)
+            extract = os.path.join(CODE_DIR, 'extract_bc.py')
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
 
-    # If asked to call peaks on samples, make a pruned BAM for each,
-    # and run MACS2 on those.
-    if call_samples:
-        printp("""# drmr:job nodes=1 processors=1 memory=4g time_limit=4h working_directory={}""".format(PRUNE_DIR))
-        printp("""\n# drmr:label make-pruned-samples\n""")
-        for index, (sample, libraries) in enumerate(sorted(SAMPLES.items()), 1):
+            printp("""\n python {} --read1 {} | gzip -c > {}_raw_barcodes.txt.gz\n""".format(extract, files[0], os.path.join(DUPLICATE_DIR, basename)))
+
+            index += 1
             if LIMIT_IO and index % LIMIT_IO == 0:
-                # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                 printp("""\n# drmr:wait""")
 
-            pruned_readgroup_bams = []
-            for library in sorted(libraries):
-                pruned_readgroup_bams.extend(make_read_group_file(library['library'], rg, '.pruned.bam') for rg in sorted(library['readgroups'].keys()))
+def starcode_barcodes(threads = 4):
+    printp("""\n#\n# run starcode to count raw barcodes\n#""")
+    printp("""\n# drmr:label starcode_raw_barcodes""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
-            printp("""\nsamtools merge -f {}.sample.pruned.bam {}""".format(sample, ' '.join(pruned_readgroup_bams)), ioniced=True)
+    index = 0
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename_with_path = os.path.splitext(files[0])[0]
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_duplicates = os.path.join(DUPLICATE_DIR, basename)
 
-        printp("""\n# drmr:wait""")
+            printp("""\n zcat {} | {}/./starcode -d 0 -t {} | sort -k1 | gzip -c > {}_raw_barcodes_counts.txt.gz\n""".format("{}_raw_barcodes.txt.gz".format(basename_duplicates), STARCODE_PATH, threads, basename_duplicates))
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
 
-        printp("""\n# drmr:job nodes=1 processors=1 memory=8g working_directory={} time_limit=4h""".format(MACS2_DIR))
-        printp("""\n# drmr:label macs2-samples\n""")
-        for sample in sorted(SAMPLES.keys()):
-            input_bam = '{}.sample.pruned.bam'.format(sample)
-            prefix = sample
-            symlink(os.path.join(PRUNE_DIR, input_bam), MACS2_DIR)
-            printp(MACS2_BROAD_PEAK_TEMPLATE.format(**locals()), timed=True, ioniced=True)
 
+def final_counts():
+    mkdir(CDNA_DIR)
+
+    printp("""\n#\n# get the final counts for the barcodes\n#""")
+    printp("""\n# drmr:label get_final_counts\n#""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    index = 0
+    counts = os.path.join(CODE_DIR, 'get_final_counts.py')
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename_with_path = os.path.splitext(files[0])[0]
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_new_path = os.path.join(DUPLICATE_DIR, basename)
+
+            output_file_path = os.path.join(CDNA_DIR, basename)
+
+
+            printp("""\n python {} -c {}_raw_barcodes_counts.txt.gz -d {}_duplicate_counts.txt.gz | gzip -c > {}_counts.txt.gz\n""".format(counts, basename_new_path, basename_new_path,  output_file_path))
+            index += 1
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+
+def level():
+    printp("""\n#\n# create leveldb databases out of the cDNA counts files \n#""")
+    printp("""\n# drmr:label level\n#""")
+    printp("""\n# drmr:job time_limit=2h working_directory={}""".format(CDNA_DIR))
+    
+    level = os.path.join(CODE_DIR, 'level.py')
+    index = 0
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            filename = os.path.join(CDNA_DIR, "{}_counts.txt.gz".format(basename))
+            output_path = os.path.join(CDNA_DIR, basename)
+
+            printp("""\n python {} --format tsv {} {}.ldb\n""".format(level, filename, output_path))
+            index += 1
+
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def level2():
+    printp("""\n#\n# count representation of input DNA library barcodes in cDNA \n#""")
+    printp("""\n# drmr:label level_lookup\n#""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
+
+    level2 = os.path.join(CODE_DIR, 'level2.py')
+    index = 0
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_with_path = os.path.join(CDNA_DIR, basename)
+            filename = os.path.join(CDNA_DIR, "{}_counts.txt.gz".format(basename))
+            output_path = os.path.join(TABLE_DIR, basename)
+
+            printp("""\n python {} {}.ldb {} | sort -k1 > {}_sorted_cdna_counts.txt\n""".format(level2, basename_with_path, filename, output_path))
+            index += 1
+
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def assemble_table():
+    printp("""\n#\n# assemble the final table \n#""")
+    printp("""\n# drmr:label final_table\n#""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(TABLE_DIR))
+
+    paste_file = []
+    basename_dna = os.path.splitext(os.path.basename(DNA_COUNTS_FILE))[0]
+    output_file_path_dna = os.path.join(TABLE_DIR, basename_dna)
+    printp("""zcat {} | sort -k1 > {}_sorted.txt.gz""".format(DNA_COUNTS_FILE, output_file_path_dna))
     printp("""\n# drmr:wait""")
+    
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_with_path = os.path.join(TABLE_DIR, basename)
 
-    printp("""\n#\n# Compress MACS2 BedGraph output\n#""")
-    printp("""\n# drmr:label compress-macs2-output\n""")
+            filename = "{}_sorted_cdna_counts.txt".format(basename_with_path)
+            paste_file.append(filename)
 
-    compression_targets = set()
-    for sample, libraries in sorted(SAMPLES.items()):
-        if call_samples:
-            compression_targets.add(sample)
-        for library in sorted(libraries):
-            if call_libraries:
-                compression_targets.add(library['library'])
-            for rg in sorted(library['readgroups'].keys()):
-                compression_targets.add(make_read_group_file(library['library'], rg))
+    paste_file.append("""{}_sorted.txt.gz""".format(output_file_path_dna))
+    paste_str = "paste "
 
-    for target in sorted(compression_targets):
-        compress_macs2_output(target)
+    for x in paste_file:
+        paste_str += x + " "
 
-    blacklist_targets = set()
-    if exclude_blacklisted_regions:
-        printp("""\n# drmr:wait""")
-        printp("""\n# drmr:label exclude-blacklisted-peaks\n""")
-        for sample, libraries in sorted(SAMPLES.items()):
-            if call_samples:
-                blacklist_targets.add((sample, libraries[0]['reference_genome']))
-
-            for library in sorted(libraries):
-                if call_libraries:
-                    blacklist_targets.add((library['library'], library['reference_genome']))
-
-                for rg in sorted(library['readgroups'].keys()):
-                    prefix = make_read_group_file(library['library'], rg)
-                    blacklist_targets.add((prefix, library['reference_genome']))
-
-
-    for target, genome in sorted(blacklist_targets):
-        exclude_blacklisted_peaks(target, genome)
-
-
-def normalize_macs2_treatment_pileups():
-    """Normalize MACS2 treatment pileup bedgraph files to 10 million fragments"""
-
-    mkdir(GB_DIR)
-
-    printp("""\n#\n# Normalize MACS2 treatment pileup bedgraph files\n#""")
-    printp("""\n# drmr:label normalize-macs2-treatment-pileup""")
-    printp("""\n# drmr:job time_limit=1h working_directory={} processors=1""".format(GB_DIR))
-
-    template = """test -r {macs2_output_file} && (zcat {macs2_treat_pileup_file} | awk -v NTAGS=$(grep 'total tags in treatment' {macs2_output_file} | awk '{{print $NF}}') '{{$4=$4*(10000000/NTAGS); print}}' | perl -pe 's/\\s+/\\t/g; s/$/\\n/' | (grep -v '_' || true) | LC_COLLATE=C sort -k1,1 -k2,2n > {macs2_normalized_treat_pileup_file}) || exit 1"""
-
-    NTAGS_RE = re.compile('total tags in treatment: (\d+)')
-    for library_name, library in sorted(LIBRARIES.items()):
-        for rg in sorted(library['readgroups'].keys()):
-            prefix = make_read_group_file(library_name, rg)
-            macs2_output_file = os.path.join(MACS2_DIR, '{}.macs2.out'.format(prefix))
-            macs2_treat_pileup_file = os.path.join(MACS2_DIR, '{}.broad_treat_pileup.bdg.gz'.format(prefix))
-            macs2_normalized_treat_pileup_file = os.path.join(GB_DIR, '{}.broad_treat_pileup.normalized.bdg'.format(prefix))
-            printp(template.format(**locals()))
-
-    printp("""\n# drmr:wait""")
-
-
-def make_macs2_treatment_pileup_bigwigs():
-    """Make bigwig files from the MACS2 treatment pileup bedgraph files"""
-
-    mkdir(GB_DIR)
-
-    printp("""\n#\n# Generate bigwig files from MACS2 treatment pileups\n#""")
-    printp("""\n# drmr:label macs2-treatment-pileup-bigwig""")
-    printp("""\n# drmr:job time_limit=1h working_directory={} processors=1""".format(GB_DIR))
-
-    template = """bash -c 'test -s {macs2_normalized_treat_pileup_bdg} && bedGraphToBigWig {macs2_normalized_treat_pileup_bdg} {chromosome_sizes} {macs2_normalized_treat_pileup_bw} || true'"""
-
-    for library_name, library in sorted(LIBRARIES.items()):
-        chromosome_sizes = get_chromosome_sizes_path(library)
-        if not os.path.isfile(chromosome_sizes):
-            print('Chromosome size file "{}" does not exist.'.format(chromosome_sizes))
-            sys.exit(1)
-
-        for rg in sorted(library['readgroups'].keys()):
-            prefix = make_read_group_file(library_name, rg)
-            macs2_normalized_treat_pileup_bdg = os.path.join(GB_DIR, '{}.broad_treat_pileup.normalized.bdg'.format(prefix))
-            macs2_normalized_treat_pileup_bw = os.path.join(GB_DIR, '{}.broad_treat_pileup.normalized.bw'.format(prefix))
-            printp(template.format(**locals()), ioniced=True)
-
-    printp("""\n# drmr:wait""")
-
-
-def make_track_lines():
-    """Make UCSC Genome Browser track lines for the broad peak files and the normalized treatment pileup bigwig files"""
-
-    base_url = 'https://theparkerlab.med.umich.edu/gb/tracks'
-
-    mkdir(GB_DIR)
-
-    for reference_genome, libraries in libraries_by_genome():
-        track_lines_file = os.path.join(GB_DIR, 'track_lines.' + reference_genome)
-        with open(track_lines_file, 'w') as track_lines:
-            for library in libraries:
-                for rg in sorted(library['readgroups'].keys()):
-                    prefix = make_read_group_file(library['library'], rg)
-                    treat_pileup_bw = '{}.broad_treat_pileup.normalized.bw'.format(prefix)
-                    treat_pileup_bw_url = '{}/{}/{}'.format(base_url, ANALYSIS_NAME, treat_pileup_bw)
-
-                    treat_pileup_track_line = (
-                        """track type=bigWig db={library[reference_genome]} name='{prefix}' """
-                        """visibility=full color=255,128,0 alwaysZero=on maxHeightPixels=50:50:50 """
-                        """windowingFunction=mean smoothingWindow=3 bigDataUrl={treat_pileup_bw_url}\n"""
-                    ).format(**locals())
-
-                    track_lines.write(treat_pileup_track_line)
-
-                    peak_track = '{}.broad_peaks.broadPeak.gz'.format(prefix)
-                    peak_track_url = '{}/{}/{}'.format(base_url, ANALYSIS_NAME, peak_track)
-
-                    peak_track_line = (
-                        """track type=broadPeak db={library[reference_genome]} name='{prefix}_peaks'\n"""
-                        """{peak_track_url}\n"""
-                    ).format(**locals())
-
-                    track_lines.write(peak_track_line)
-
-                    symlink(os.path.join(MACS2_DIR, peak_track), GB_DIR)
-
-    with open(os.path.join(GB_DIR, 'install.sh'), 'w') as install:
-        vs_dir = os.path.join('/lab/web/data/gb/tracks/', ANALYSIS_NAME)
-        install.write("""ssh vs mkdir -p {} && rsync -avL --exclude install.sh {}/ vs:{}/ && ssh vs "chmod 755 {}; chmod 644 {}/*"\n""".format(vs_dir, GB_DIR, vs_dir, vs_dir, vs_dir))
-
-
-def ataqv(use_autosomal_reference_files=False, threads=4):
-    """
-    Run ataqv for each library.
-    """
-
-    mkdir(ATAQV_DIR)
-
-    printp("""\n#\n# run ataqv\n#""")
-    printp("""\n# drmr:label ataqv""")
-
-    ATAQV_TEMPLATE = """ataqv --peak-file {peak_file} --metrics-file {metrics_file} --name 'Library {library_name}, read group {rg}' {ataqv_options} {organism} {alignments} > {output_file}\n"""
-
-    metrics_files = []
-    for library_name, library in sorted(LIBRARIES.items()):
-        if use_autosomal_reference_files:
-            autosomal_reference_filename = os.path.join(ATAQV_DIR, '{}.arf'.format(library_name))
-            with open(autosomal_reference_filename, 'w') as arf:
-                for ar in sorted(AUTOSOMAL_REFERENCES[library['reference_genome']]):
-                    arf.write(ar)
-                    arf.write('\n')
-
-        for rg in sorted(library['readgroups'].keys()):
-            alignments = make_read_group_file(library_name, rg, '.md.bam')
-            alignments_index = alignments + '.bai'
-            peak_file = make_read_group_file(library_name, rg, '.broad_peaks.broadPeak.gz')
-            symlink(os.path.join(MD_DIR, alignments), ATAQV_DIR)
-            symlink(os.path.join(MD_DIR, alignments_index), ATAQV_DIR)
-            symlink(os.path.join(MACS2_DIR, peak_file), ATAQV_DIR)
-
-            ataqv_options = ["""{} '{}'""".format(k, v) for k, v in sorted({
-                '--description': DESCRIPTION,
-                '--library-description': library.get('description').replace('\n', ' '),
-                '--url': library.get('url'),
-            }.items()) if v]
-
-            if use_autosomal_reference_files:
-                ataqv_options.append('--autosomal-reference-file {}'.format(autosomal_reference_filename))
-
-            tss_file = TSS_REFERENCES.get(library['reference_genome'])
-            if tss_file:
-                if os.path.exists(tss_file):
-                    ataqv_options.append('--tss-file {}'.format(tss_file))
-                else:
-                    print('TSS reference "{}" for genome "{}" not found.'.format(tss_file, library['reference_genome']), file=sys.stderr)
-                    sys.exit(1)
-
-            if library['reference_genome'] in EXCLUDED_REGIONS:
-                for excluded_region_file in sorted(EXCLUDED_REGIONS[library['reference_genome']]):
-                    if os.path.isfile(excluded_region_file):
-                        ataqv_options.append('--excluded-region-file {}'.format(excluded_region_file))
-                    else:
-                        print('Excluded region file {} for reference genome {} does not exist; dropping it from ataqv commands.'.format(excluded_region_file, library['reference_genome']), file=sys.stderr)
-
-            ataqv_options = ' '.join(ataqv_options)
-
-            organism = ORGANISMS.get(library['reference_genome'])
-
-            metrics_file = make_read_group_file(library_name, rg, '.ataqv.json.gz')
-            metrics_files.append(metrics_file)
-
-            output_file = make_read_group_file(library_name, rg, '.ataqv.out')
-
-            printp("""\n# drmr:job nodes=1 processors={} memory=8g working_directory={} time_limit=4h""".format(threads, ATAQV_DIR))
-            printp(ATAQV_TEMPLATE.format(**locals()), timed=True, ioniced=True)
-
-    printp("""\n# drmr:wait""")
-
-    printp("""\n# drmr:label mkarv""")
-    printp("""\n# drmr:job nodes=1 processors=1 working_directory={} time_limit=4h""".format(ATAQV_DIR))
-    printp("""\nmkarv --force -d '{}' viewer {}""".format(DESCRIPTION, ' '.join(metrics_files)))
-
+    paste_str += """ | awk '{print $1,"\\t", $2, "\\t", $4, "\\t", \$6, "\\t", $8}' | gzip -c > """
+    printp("""{} {}""".format(paste_str, os.path.join(TABLE_DIR, 'final_counts_table.txt.gz')))
 
 if __name__ == '__main__':
     mkdir(WORK_PATH)
@@ -781,32 +471,34 @@ if __name__ == '__main__':
     printp("""#!/bin/bash""")
     printp("""# -*- mode: sh; coding: utf-8 -*-\n""")
 
-    fastqc()
-
-    trim_adapters()
+    trim_barcodes_umis()
 
     printp("""\n# drmr:wait""")
 
-    bwa()
+    starcode_pairs()
+
+    printp("""\n# drmr:wait""")
+    
+    extract_barcodes()
 
     printp("""\n# drmr:wait""")
 
-    mark_duplicates()
+    starcode_barcodes()
 
     printp("""\n# drmr:wait""")
 
-    prune()
+    final_counts()
 
     printp("""\n# drmr:wait""")
 
-    macs2(exclude_blacklisted_regions=True)
+    level()
 
     printp("""\n# drmr:wait""")
 
-    normalize_macs2_treatment_pileups()
+    level2()
 
-    make_macs2_treatment_pileup_bigwigs()
+    printp("""\n# drmr:wait""")
 
-    make_track_lines()
+    assemble_table()
 
-    ataqv()
+    #printp("""\n# drmr:wait""")

@@ -5,7 +5,7 @@
 #
 # This analysis was generated with this mka command:
 #
-# /lab/sw/ve/pl3/bin/mka --analysis-type 'atac-seq' --description 'Test STARR-seq pipeline for DNA and cDNA counts from input files' /lab/work/collinwa/scifair_1718/run_1890_pipeline_test /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85565_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85565_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85566_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85566_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85567_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85567_run_1890.read2.fq.gz
+# /lab/sw/ve/pl3/bin/mka --analysis-type 'atac-seq' --description 'test' /lab/work/collinwa/scifair_1718/run_1890_pipeline_test /lab/work/collinwa/scifair_1718/data_2/________1___Rep1.1.fastq.gz /lab/work/collinwa/scifair_1718/data_2/________1___Rep1.2.fastq.gz /lab/work/collinwa/scifair_1718/data_2/________2___Rep1.1.fastq.gz /lab/work/collinwa/scifair_1718/data_2/________2___Rep1.2.fastq.gz
 #
 # run in this directory:
 #
@@ -13,7 +13,7 @@
 #
 
 ANALYSIS_NAME = run_1890_pipeline_test
-DESCRIPTION = Test STARR-seq pipeline for DNA and cDNA counts from input files
+DESCRIPTION = test
 CONTROL_PATH = /lab/work/collinwa/scifair_1718/run_1890_pipeline_test
 ANALYSIS_PATH = /lab/work/collinwa/scifair_1718/run_1890_pipeline_test
 DATA_PATH = /lab/work/collinwa/scifair_1718/run_1890_pipeline_test/data
