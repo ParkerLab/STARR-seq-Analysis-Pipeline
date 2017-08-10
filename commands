@@ -26,39 +26,7 @@ REFERENCE_ROOT = os.getenv('MKA_REFERENCE_ROOT', '/lab/data/reference')
 
 prefix_reference_root = functools.partial(os.path.join, REFERENCE_ROOT)
 
-AUTOSOMAL_REFERENCES = {
-    'dm3': ['chr2L', 'chr2LHet', 'chr2R', 'chr2RHet', 'chr3L', 'chr3LHet', 'chr3R', 'chr3RHet', 'chr4'],
-    'dm6': ['chr2L', 'chr2R', 'chr3L', 'chr3R', 'chr4'],
-    'hg19': ['chr{}'.format(i) for i in range(1, 23)],
-    'mm9': ['chr{}'.format(i) for i in range(1, 20)],
-    'mm10': ['chr{}'.format(i) for i in range(1, 20)],
-    'rn5': ['chr{}'.format(i) for i in range(1, 21)],
-}
-
-EXCLUDED_REGIONS = {
-    'dm3': list(map(prefix_reference_root, ['fly/dm3/annot/dm3-blacklist.bed.gz'])),
-    'hg19': list(map(prefix_reference_root, ['human/hg19/annot/wgEncodeDukeMapabilityRegionsExcludable.bed.gz', 'human/hg19/annot/wgEncodeDacMapabilityConsensusExcludable.bed.gz'])),
-    'mm9': list(map(prefix_reference_root, ['mouse/mm9/annot/mm9-blacklist.bed.gz'])),
-    'mm10': list(map(prefix_reference_root, ['mouse/mm10/annot/mm10.blacklist.bed.gz']))
-}
-
-TSS_REFERENCES = {
-    'hg19': prefix_reference_root('human/hg19/annot/hg19.tss.refseq.bed'),
-    'mm9': prefix_reference_root('mouse/mm9/annot/mm9.tss.refseq.bed'),
-    'mm10': prefix_reference_root('mouse/mm10/annot/mm10.tss.refseq.bed'),
-    'rn5': prefix_reference_root('rat/rn5/annot/rn5.tss.refseq.bed'),
-}
-
 FASTQ_RE = re.compile('\.f(ast)?q(\.gz)?$')
-
-ORGANISMS = {
-    'dm3': 'fly',
-    'dm6': 'fly',
-    'hg19': 'human',
-    'mm9': 'mouse',
-    'mm10': 'mouse',
-    'rn5': 'rat'
-}
 
 ANALYSIS_NAME = "run_1890_pipeline_test"
 DESCRIPTION = """Test STARR-seq pipeline for DNA and cDNA counts from input files"""
