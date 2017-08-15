@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+#
+# This analysis was generated with this mka command:
+#
+# /lab/sw/ve/pl3/bin/mka --analysis-type 'atac-seq' --description 'Test STARR-seq pipeline for DNA and cDNA counts from input files' /lab/work/collinwa/scifair_1718/run_1890_pipeline_test /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85565_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85565_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85566_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85566_run_1890.read2.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85567_run_1890.read1.fq.gz /lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85567_run_1890.read2.fq.gz
+#
+# run in this directory:
+#
+# /lab/work/collinwa/scifair_1718
+#
+
+from __future__ import print_function
+
+import contextlib
+import gzip
+import functools
+import itertools
+import os
+import re
+import sys
+
+
+REFERENCE_ROOT = os.getenv('MKA_REFERENCE_ROOT', '/lab/data/reference')
+
+prefix_reference_root = functools.partial(os.path.join, REFERENCE_ROOT)
+
+FASTQ_RE = re.compile('\.f(ast)?q(\.gz)?$')
+
+ANALYSIS_NAME = "run_1890_pipeline_test"
+DESCRIPTION = """Test STARR-seq pipeline for DNA and cDNA counts from input files"""
+CONTROL_PATH = "/lab/work/collinwa/scifair_1718/run_1890_pipeline_test"
+ANALYSIS_PATH = "/lab/work/collinwa/scifair_1718/run_1890_pipeline_test"
+STARCODE_PATH = "/home/collinwa/lab/starcode"
+DNA_COUNTS_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/no_qc_barcode_counts.txt.gz"
+
+DATA_PATH = os.path.join(ANALYSIS_PATH, 'data')
+WORK_PATH = os.path.join(ANALYSIS_PATH, 'work')
+PIPELINE = os.path.join(ANALYSIS_PATH, 'pipeline')
+
+CDNA_DIR = os.path.join(WORK_PATH, 'cdna_counts')
+DUPLICATE_DIR = os.path.join(WORK_PATH, 'duplicates_data')
+TABLE_DIR = os.path.join(WORK_PATH, 'count_table')
+CODE_DIR = os.path.join(WORK_PATH, 'code')
+
+INPUT_DNA_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/dna_counts/no_qc_barcode_counts.txt.gz"
+
+# By default, we use ionice and limit the number of particularly
+# I/O-intensive jobs that run at once, to keep the machine
+# responsive. If you're running on dedicated cluster nodes, you
+# probably want to set this to 0.
+LIMIT_IO = 0
+
+#
+# Library dictionary
+#
+
+LIBRARIES = {'': {'sequencing_date': '',
+                  'reference_genome': 'hg19',
+                  'sequencing_center': '', 'sample': '',
+                  'analysis_specific_options': {},
+                  'sequencing_platform': '',
+                  'sequencing_platform_model': '',
+                  'url': '',
+                  'readgroups': { '1': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85562_run_1890.read2.fq.gz'],
+                                  '2': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85563_run_1890.read2.fq.gz'],
+                                  '3': ['/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read1.fq.gz', '/lab/data/kitzman/83213_modSTARRseq_run1890_072717/Sample_85564_run_1890.read2.fq.gz']
+                                },
+                  'library': '',
+                  'description': 'Rep1'
+                 }
+            }
+SAMPLES = {}
+for library in LIBRARIES.values():
+    SAMPLES.setdefault(library['sample'], []).append(library)
+
+
+def maybe_gzip(filename, ioniced=False):
+    """Compress a file with gzip."""
+    template_data = {
+        'f': filename,
+        'ionice': ioniced and 'ionice -c 2 -n 7 ' or ''
+    }
+
+    command_template = """if [ -r "{f}" ]; then {ionice}gzip -f "{f}"; elif [ -r "{f}".gz ]; then echo '"{f}" already gzipped.'; fi"""
+
+    printp(command_template.format(**template_data))
+
+
+def mkdir(dir, mode=0o0750):
+    """Construct a directory hierarchy using the given permissions."""
+    if not os.path.exists(dir):
+        os.makedirs(dir, mode)
+
+
+def open_maybe_gzipped(filename):
+    """
+    Open a possibly gzipped file.
+
+    Parameters
+    ----------
+    filename: str
+        The name of the file to open.
+
+    Returns
+    -------
+    file
+        An open file object.
+    """
+    with open(filename, 'rb') as test_read:
+        byte1, byte2 = test_read.read(1), test_read.read(1)
+        if byte1 and ord(byte1) == 0x1f and byte2 and ord(byte2) == 0x8b:
+            f = gzip.open(filename, mode='rt')
+        else:
+            f = open(filename, 'rt')
+    return f
+
+
+LEADING_WHITESPACE_RE = re.compile(r'(\s+)*(.*)')
+def print_to_pipeline(pipeline_file, text=None, timed=False, ioniced=False):
+    """The primary function of all this: writing to a drmr script."""
+    if text:
+        m = LEADING_WHITESPACE_RE.match(text)
+        if m.group(1):
+            pipeline_file.write(m.group(1))
+        if timed:
+            pipeline_file.write('/usr/bin/time -v ')
+        if ioniced:
+            pipeline_file.write('ionice -c 2 -n 7 ')
+        pipeline_file.write(m.group(2))
+        pipeline_file.write('\n')
+
+
+@contextlib.contextmanager
+def working_directory(path):
+    """Changes to the given directory, returning to the original working directory when the context block is exited."""
+    original_directory = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(original_directory)
+
+
+def symlink(source_path, dest_path, absolute=False):
+    """Create a symbolic link from the source_path to the dest_path, which can be a directory."""
+
+    workdir = os.path.isdir(dest_path) and dest_path or os.path.dirname(dest_path)
+
+    with working_directory(workdir):
+        src = os.path.normpath(absolute and os.path.abspath(source_path) or os.path.relpath(source_path, dest_path))
+        dest = dest_path
+        dest_base = os.path.basename(dest)
+        if os.path.isdir(dest_path):
+            dest = os.path.join(dest_path, os.path.basename(src))
+            if os.path.lexists(dest):
+                os.unlink(dest)
+            os.symlink(src, dest)
+        else:
+            mkdir(os.path.dirname(dest_path))
+            if os.path.lexists(dest):
+                os.unlink(dest)
+            os.symlink(src, dest)
+        return dest, dest_base
+
+
+def rename_fastq(fastq, suffix=''):
+    return FASTQ_RE.sub(fastq, suffix)
+
+
+def iterate_library_source_files(library_name):
+    """Generates a list of the library's original files."""
+    library = LIBRARIES[library_name]
+    for rg, files in sorted(library['readgroups'].items()):
+        for f in sorted(files):
+            yield f
+
+
+def iterate_all_source_files():
+    return itertools.chain(*[iterate_library_source_files(library_name) for library_name in sorted(LIBRARIES.keys())])
+
+
+def iterate_library_files(library_name):
+    """Generates a list of the library's files in DATA_PATH."""
+    library = LIBRARIES[library_name]
+    for rg, files in sorted(library['readgroups'].items()):
+        for f in sorted(files):
+            yield os.path.join(DATA_PATH, os.path.basename(f))
+
+
+def iterate_all_files():
+    return itertools.chain(*[iterate_library_files(library_name) for library_name in sorted(LIBRARIES.keys())])
+
+
+def library_reference_genomes():
+    return sorted(list(set(library['reference_genome'] for library_name, library in sorted(LIBRARIES.items()))))
+
+
+def libraries_by_genome():
+    libraries = {}
+    for genome in library_reference_genomes():
+        libraries[genome] = [library for library_name, library in sorted(LIBRARIES.items()) if library['reference_genome'] == genome]
+
+    # return genome, libraries for each genom
+    return sorted(libraries.items())
+
+
+def get_chromosome_sizes_path(library):
+    reference_genome = library['reference_genome']
+    bwa_reference = BWA_REFERENCES[reference_genome]
+    return '{}.chrom_sizes'.format(bwa_reference)
+
+
+def make_read_group_file(library_name, readgroup, suffix=''):
+    return '{library_name}___{readgroup}{suffix}'.format(**locals())
+
+
+def make_read_group_header(library, id):
+    read_group_components = {
+        'ID': '{}___{}'.format(library['library'], id),
+
+        # library
+        'LB': library['library'],
+
+        # sample
+        'SM': library['sample'],
+
+        # sequencing center name
+        'CN': library['sequencing_center'],
+
+        # ISO8601 date(time) of sequencing
+        'DT': library['sequencing_date'],
+
+        # platform (Illumina, Solid, etc. -- see the spec for valid values
+        'PL': library['sequencing_platform'],
+
+        # free-form description
+        'DS': library['description'].replace('\n', ' '),
+    }
+
+    header = """@RG\\t{}""".format('\\t'.join('{}:{}'.format(k, v) for k, v in sorted(read_group_components.items()) if v))
+
+    return header
+
+
+def starcode_pairs(threads = 4):
+    """Run Starcode on all extracted barcodes and/or umis."""
+
+    printp("""\n#\n# run starcode on trimmed data\n#""")
+    printp("""\n# drmr:label starcode""")
+    printp("""\n# drmr:job time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
+
+    duplicate = os.path.join(CODE_DIR, 'adjust_duplicates.py')
+    index = 0
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(files[0])[0]
+            filename = os.path.join(DUPLICATE_DIR, "{}_pairs.txt.gz".format(basename))
+            printp("""\nzcat {} | {}./starcode -d 0 -t {} | python {} | sort -k1 | gzip -c > {}\n""".format(filename, STARCODE_PATH, threads, duplicate, "{}_duplicate_counts.txt.gz".format(os.path.join(DUPLICATE_DIR,os.path.basename(basename)))))
+            index += 1
+
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def trim_barcodes_umis():
+    #
+    # Trim adapter sequence from the FASTQ files
+    #
+
+    mkdir(DUPLICATE_DIR)
+
+    printp("""\n#\n# extract barcode umi sequence from file\n#""")
+    printp("""\n# drmr:label extract_pairs""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+
+    index = 0
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+
+            trim = os.path.join(CODE_DIR, 'trim_cdna.py')
+
+            printp("""\npython {} --read1 {} --read3 {} | gzip -c > {}_pairs.txt.gz\n""".format(trim, *files, os.path.join(DUPLICATE_DIR, os.path.join(DUPLICATE_DIR, os.path.basename(os.path.splitext(files[0])[0])))), timed=True, ioniced=True)
+            
+            index += 1
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def extract_barcodes():
+    printp("""\n#\n# get the raw barcodes counts from the cDNA\n#""")
+    printp("""\n# drmr:label extract_raw_barcodes""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    
+    index = 0
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+
+            extract = os.path.join(CODE_DIR, 'extract_bc.py')
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+
+            printp("""\n python {} --read1 {} | gzip -c > {}_raw_barcodes.txt.gz\n""".format(extract, files[0], os.path.join(DUPLICATE_DIR, basename)))
+
+            index += 1
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def starcode_barcodes(threads = 4):
+    printp("""\n#\n# run starcode to count raw barcodes\n#""")
+    printp("""\n# drmr:label starcode_raw_barcodes""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+
+    index = 0
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename_with_path = os.path.splitext(files[0])[0]
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_duplicates = os.path.join(DUPLICATE_DIR, basename)
+
+            printp("""\n zcat {} | {}/./starcode -d 0 -t {} | sort -k1 | gzip -c > {}_raw_barcodes_counts.txt.gz\n""".format("{}_raw_barcodes.txt.gz".format(basename_duplicates), STARCODE_PATH, threads, basename_duplicates))
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+
+def final_counts():
+    mkdir(CDNA_DIR)
+
+    printp("""\n#\n# get the final counts for the barcodes\n#""")
+    printp("""\n# drmr:label get_final_counts\n#""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    index = 0
+    counts = os.path.join(CODE_DIR, 'get_final_counts.py')
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename_with_path = os.path.splitext(files[0])[0]
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_new_path = os.path.join(DUPLICATE_DIR, basename)
+
+            output_file_path = os.path.join(CDNA_DIR, basename)
+
+
+            printp("""\n python {} -c {}_raw_barcodes_counts.txt.gz -d {}_duplicate_counts.txt.gz | gzip -c > {}_counts.txt.gz\n""".format(counts, basename_new_path, basename_new_path,  output_file_path))
+            index += 1
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+
+def level():
+    printp("""\n#\n# create leveldb databases out of the cDNA counts files \n#""")
+    printp("""\n# drmr:label level\n#""")
+    printp("""\n# drmr:job time_limit=2h working_directory={}""".format(CDNA_DIR))
+    
+    level = os.path.join(CODE_DIR, 'level.py')
+    index = 0
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            filename = os.path.join(CDNA_DIR, "{}_counts.txt.gz".format(basename))
+            output_path = os.path.join(CDNA_DIR, basename)
+
+            printp("""\n python {} --format tsv {} {}.ldb\n""".format(level, filename, output_path))
+            index += 1
+
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def level2():
+    printp("""\n#\n# count representation of input DNA library barcodes in cDNA \n#""")
+    printp("""\n# drmr:label level_lookup\n#""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
+
+    level2 = os.path.join(CODE_DIR, 'level2.py')
+    index = 0
+
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_with_path = os.path.join(CDNA_DIR, basename)
+            filename = os.path.join(CDNA_DIR, "{}_counts.txt.gz".format(basename))
+            output_path = os.path.join(TABLE_DIR, basename)
+
+            printp("""\n python {} {}.ldb {} | sort -k1 > {}_sorted_cdna_counts.txt\n""".format(level2, basename_with_path, filename, output_path))
+            index += 1
+
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
+def assemble_table():
+    printp("""\n#\n# assemble the final table \n#""")
+    printp("""\n# drmr:label final_table\n#""")
+    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(TABLE_DIR))
+
+    paste_file = []
+    basename_dna = os.path.splitext(os.path.basename(DNA_COUNTS_FILE))[0]
+    output_file_path_dna = os.path.join(TABLE_DIR, basename_dna)
+    printp("""zcat {} | sort -k1 > {}_sorted.txt.gz""".format(DNA_COUNTS_FILE, output_file_path_dna))
+    printp("""\n# drmr:wait""")
+    
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(os.path.basename(files[0]))[0]
+            basename_with_path = os.path.join(TABLE_DIR, basename)
+
+            filename = "{}_sorted_cdna_counts.txt".format(basename_with_path)
+            paste_file.append(filename)
+
+    paste_file.append("""{}_sorted.txt.gz""".format(output_file_path_dna))
+    paste_str = "paste "
+
+    for x in paste_file:
+        paste_str += x + " "
+
+    paste_str += """ | awk '{print $1,"\\t", $2, "\\t", $4, "\\t", \$6, "\\t", $8}' | gzip -c > """
+    printp("""{} {}""".format(paste_str, os.path.join(TABLE_DIR, 'final_counts_table.txt.gz')))
+
+if __name__ == '__main__':
+    mkdir(WORK_PATH)
+    mkdir(DATA_PATH)
+
+    for source_file in iterate_all_source_files():
+        dest = os.path.join(DATA_PATH, os.path.basename(source_file))
+        symlink(source_file, dest, absolute=True)
+
+    if os.path.exists(PIPELINE):
+        os.unlink(PIPELINE)
+
+    PIPELINE_FILE = open(PIPELINE, 'w')
+    printp = functools.partial(print_to_pipeline, PIPELINE_FILE)
+
+    printp("""#!/bin/bash""")
+    printp("""# -*- mode: sh; coding: utf-8 -*-\n""")
+
+    trim_barcodes_umis()
+
+    printp("""\n# drmr:wait""")
+
+    starcode_pairs()
+
+    printp("""\n# drmr:wait""")
+    
+    extract_barcodes()
+
+    printp("""\n# drmr:wait""")
+
+    starcode_barcodes()
+
+    printp("""\n# drmr:wait""")
+
+    final_counts()
+
+    printp("""\n# drmr:wait""")
+
+    level()
+
+    printp("""\n# drmr:wait""")
+
+    level2()
+
+    printp("""\n# drmr:wait""")
+
+    assemble_table()
+
+    #printp("""\n# drmr:wait""")
