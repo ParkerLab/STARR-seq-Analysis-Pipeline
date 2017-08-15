@@ -32,8 +32,8 @@ ANALYSIS_NAME = "run_1890_pipeline_test"
 DESCRIPTION = """Test STARR-seq pipeline for DNA and cDNA counts from input files"""
 CONTROL_PATH = "/lab/work/collinwa/scifair_1718/run_1890_pipeline_test"
 ANALYSIS_PATH = "/lab/work/collinwa/scifair_1718/run_1890_pipeline_test"
-STARCODE_PATH = "/home/collinwa/lab/starcode"
-DNA_COUNTS_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/no_qc_barcode_counts.txt.gz"
+STARCODE_PATH = "/home/collinwa/lab/starcode" ## we can remove this
+DNA_COUNTS_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/no_qc_barcode_counts.txt.gz" ##Yoshi - why is this defined here?
 
 DATA_PATH = os.path.join(ANALYSIS_PATH, 'data')
 WORK_PATH = os.path.join(ANALYSIS_PATH, 'work')
@@ -42,9 +42,9 @@ PIPELINE = os.path.join(ANALYSIS_PATH, 'pipeline')
 CDNA_DIR = os.path.join(WORK_PATH, 'cdna_counts')
 DUPLICATE_DIR = os.path.join(WORK_PATH, 'duplicates_data')
 TABLE_DIR = os.path.join(WORK_PATH, 'count_table')
-CODE_DIR = os.path.join(WORK_PATH, 'code')
+CODE_DIR = os.path.join(WORK_PATH, 'code') ##Yoshi - check this
 
-INPUT_DNA_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/dna_counts/no_qc_barcode_counts.txt.gz"
+INPUT_DNA_FILE = "/home/collinwa/scifair_1718/run_2017_28_7/dna_counts/no_qc_barcode_counts.txt.gz" ##Yoshi - why is this defined here?
 
 # By default, we use ionice and limit the number of particularly
 # I/O-intensive jobs that run at once, to keep the machine
@@ -243,30 +243,12 @@ def make_read_group_header(library, id):
 
     return header
 
-
-def starcode_pairs(threads = 4):
-    """Run Starcode on all extracted barcodes and/or umis."""
-
-    printp("""\n#\n# run starcode on trimmed data\n#""")
-    printp("""\n# drmr:label starcode""")
-    printp("""\n# drmr:job time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
-
-    duplicate = os.path.join(CODE_DIR, 'adjust_duplicates.py')
-    index = 0
-    for name, library in sorted(LIBRARIES.items()):
-        for rg, files in sorted(library['readgroups'].items()):
-            basename = os.path.splitext(files[0])[0]
-            filename = os.path.join(DUPLICATE_DIR, "{}_pairs.txt.gz".format(basename))
-            printp("""\nzcat {} | {}./starcode -d 0 -t {} | python {} | sort -k1 | gzip -c > {}\n""".format(filename, STARCODE_PATH, threads, duplicate, "{}_duplicate_counts.txt.gz".format(os.path.join(DUPLICATE_DIR,os.path.basename(basename)))))
-            index += 1
-
-            if LIMIT_IO and index % LIMIT_IO == 0:
-                # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
-                printp("""\n# drmr:wait""")
-
-def trim_barcodes_umis():
+##Yoshi - remove any unused functions above.
+  
+  
+def trim_barcodes_umis(): ##Yoshi - check directory structure. The output files here: /home/collinwa/scifair_1718/run_1890_pipeline_test/work/duplicates_data doesn't contain any data.
     #
-    # Trim adapter sequence from the FASTQ files
+    # Trim adapter sequence from the FASTQ files ##Yoshi - please modify to print this description in the pipeline.
     #
 
     mkdir(DUPLICATE_DIR)
@@ -288,8 +270,28 @@ def trim_barcodes_umis():
                 # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                 printp("""\n# drmr:wait""")
 
+def starcode_pairs(threads = 4): ##Yoshi - remove "threads" option ##Yoshi - where are output files of this command. Not in the directory specified by the pipeline
+    """Run Starcode on all extracted barcodes and/or umis."""
+
+    printp("""\n#\n# run starcode on trimmed data\n#""")
+    printp("""\n# drmr:label starcode""")
+    printp("""\n# drmr:job time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
+
+    duplicate = os.path.join(CODE_DIR, 'adjust_duplicates.py')
+    index = 0
+    for name, library in sorted(LIBRARIES.items()):
+        for rg, files in sorted(library['readgroups'].items()):
+            basename = os.path.splitext(files[0])[0]
+            filename = os.path.join(DUPLICATE_DIR, "{}_pairs.txt.gz".format(basename))
+            printp("""\nzcat {} | {}./starcode -d 0 -t {} | python {} | sort -k1 | gzip -c > {}\n""".format(filename, STARCODE_PATH, threads, duplicate, "{}_duplicate_counts.txt.gz".format(os.path.join(DUPLICATE_DIR,os.path.basename(basename)))))
+            index += 1
+
+            if LIMIT_IO and index % LIMIT_IO == 0:
+                # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                printp("""\n# drmr:wait""")
+
 def extract_barcodes():
-    printp("""\n#\n# get the raw barcodes counts from the cDNA\n#""")
+    printp("""\n#\n# get the raw barcodes counts from the cDNA\n#""") ##Yoshi - I don't see this in the pipeline
     printp("""\n# drmr:label extract_raw_barcodes""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
     
@@ -309,7 +311,7 @@ def extract_barcodes():
                 printp("""\n# drmr:wait""")
 
 def starcode_barcodes(threads = 4):
-    printp("""\n#\n# run starcode to count raw barcodes\n#""")
+    printp("""\n#\n# run starcode to count raw barcodes\n#""") ##Yoshi - I don't see this in the pipeline
     printp("""\n# drmr:label starcode_raw_barcodes""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
@@ -326,10 +328,10 @@ def starcode_barcodes(threads = 4):
                 printp("""\n# drmr:wait""")
 
 
-def final_counts():
+def final_counts(): ##Yoshi - I don't see outputs of this command
     mkdir(CDNA_DIR)
 
-    printp("""\n#\n# get the final counts for the barcodes\n#""")
+    printp("""\n#\n# get the final counts for the barcodes\n#""") ##Yoshi - I don't see this in the pipeline
     printp("""\n# drmr:label get_final_counts\n#""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
     index = 0
@@ -343,16 +345,14 @@ def final_counts():
 
             output_file_path = os.path.join(CDNA_DIR, basename)
 
-
             printp("""\n python {} -c {}_raw_barcodes_counts.txt.gz -d {}_duplicate_counts.txt.gz | gzip -c > {}_counts.txt.gz\n""".format(counts, basename_new_path, basename_new_path,  output_file_path))
             index += 1
             if LIMIT_IO and index % LIMIT_IO == 0:
                 # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                 printp("""\n# drmr:wait""")
 
-
-def level():
-    printp("""\n#\n# create leveldb databases out of the cDNA counts files \n#""")
+def level(): ##Yoshi - I don't see output of this command
+    printp("""\n#\n# create leveldb databases out of the cDNA counts files \n#""") ##Yoshi - I don't see this in the pipeline
     printp("""\n# drmr:label level\n#""")
     printp("""\n# drmr:job time_limit=2h working_directory={}""".format(CDNA_DIR))
     
@@ -372,8 +372,8 @@ def level():
                 # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                 printp("""\n# drmr:wait""")
 
-def level2():
-    printp("""\n#\n# count representation of input DNA library barcodes in cDNA \n#""")
+def level2(): ##Yoshi - I don't see output of this command
+    printp("""\n#\n# count representation of input DNA library barcodes in cDNA \n#""") ##Yoshi - I don't see this in the pipeline
     printp("""\n# drmr:label level_lookup\n#""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
 
