@@ -43,14 +43,14 @@ CDNA_DIR = os.path.join(WORK_PATH, 'cdna_counts')
 DUPLICATE_DIR = os.path.join(WORK_PATH, 'duplicates_data')
 TABLE_DIR = os.path.join(WORK_PATH, 'count_table')
 
-UNMERGED_QC_BARCODES_COUNTS_FILE = os.path.join(CDNA_DIR, 'unmerged_qc_barcode_counts.txt.gz')
-QC_BARCODE_COUNTS_FILE = os.path.join(CDNA_DIR, 'qc_barcode_counts.txt.gz')
+UNMERGED_QC_BARCODES_COUNTS_FILE = os.path.join(CDNA_DIR, 'unmerged_qc_barcode_counts.txt')
+QC_BARCODE_COUNTS_FILE = os.path.join(CDNA_DIR, 'qc_barcode_counts.txt')
 
 # By default, we use ionice and limit the number of particularly
 # I/O-intensive jobs that run at once, to keep the machine
 # responsive. If you're running on dedicated cluster nodes, you
 # probably want to set this to 0.
-LIMIT_IO = 0
+LIMIT_IO = 1
 
 #
 # Library dictionary
@@ -233,13 +233,25 @@ def get_qc_counts(threads=4):
 
     printp("""\n# drmr:label get_qc_counts\n#""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
-
+    
+    index = 0
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' in files[0]:
-                printp("""DNA_counts_no_qc.py -f1 {} -f2 {} | starcode -t {} -d 0 | sort -k1 | gzip -c >> {}""".format(files[0], files[1], threads, UNMERGED_QC_BARCODES_COUNTS_FILE))
-    
-    printp("""\nzcat {} | starcode -t {} -d 0 | sort -k1 | gzip -c > {}""".format(UNMERGED_QC_BARCODES_COUNTS_FILE, threads, QC_BARCODE_COUNTS_FILE))
+                if index == 0:
+                    printp("""DNA_counts_no_qc.py -f1 {} -f2 {} | starcode -t {} -d 0 | sort -k1 >> {}""".format(files[0], files[1], threads, UNMERGED_QC_BARCODES_COUNTS_FILE))
+                    index += 1
+                    if LIMIT_IO and index % LIMIT_IO == 0:
+                        # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                        printp("""\n# drmr:wait""")
+                else:
+                    printp("""DNA_counts_no_qc.py -f1 {} -f2 {} | starcode -t {} -d 0 | sort -k1 >> {}""".format(files[0], files[1], threads, UNMERGED_QC_BARCODES_COUNTS_FILE))
+                    index += 1
+                    if LIMIT_IO and index % LIMIT_IO == 0:
+                        # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                        printp("""\n# drmr:wait""")
+    printp("""\n# drmr:wait""")
+    printp("""\ncat {} | starcode -t {} -d 0 | sort -k1 > {}""".format(UNMERGED_QC_BARCODES_COUNTS_FILE, threads, QC_BARCODE_COUNTS_FILE))
     printp("""\n# drmr:wait""")
 
 
@@ -252,17 +264,24 @@ def trim_barcodes_umis():
     printp("""\n# drmr:label extract_pairs""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
-    index = 0
     for name, library in sorted(LIBRARIES.items()):
+        index = 0
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' not in files[0]:
-                printp("""trim_cdna.py --read1 {} --read3 {} | gzip -c >> {}_pairs.txt.gz""".format(files[0], files[1], os.path.join(DUPLICATE_DIR, name)), timed=True, ioniced=True)
+                if index == 0:
+                    printp("""trim_cdna.py --read1 {} --read3 {} >> {}_pairs.txt""".format(files[0], files[1], os.path.join(DUPLICATE_DIR, name)), timed=True, ioniced=True)
 
-                index += 1
-                if LIMIT_IO and index % LIMIT_IO == 0:
-                    # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
-                    printp("""\n# drmr:wait""")
+                    index += 1
+                    if LIMIT_IO and index % LIMIT_IO == 0:
+                        # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                        printp("""\n# drmr:wait""")
+                else:
+                    printp("""trim_cdna.py --read1 {} --read3 {} >> {}_pairs.txt""".format(files[0], files[1], os.path.join(DUPLICATE_DIR, name)), timed=True, ioniced=True)
 
+                    index += 1
+                    if LIMIT_IO and index % LIMIT_IO == 0:
+                        # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                        printp("""\n# drmr:wait""")
     printp("""\n# drmr:wait""")
 
 
@@ -275,13 +294,13 @@ def starcode_pairs(threads=4):
 
     mkdir(DUPLICATE_DIR)
 
-    index = 0
     for name, library in sorted(LIBRARIES.items()):
+        index = 0
         for rg, files in sorted(library['readgroups'].items()):
             printp('# ' + name)
-            infile = os.path.join(DUPLICATE_DIR, "{}_pairs.txt.gz".format(name))
+            infile = os.path.join(DUPLICATE_DIR, "{}_pairs.txt".format(name))
             if 'inputDNA' not in files[0]:
-                printp("""zcat {} | starcode -d 0 -t {} | adjust_duplicates.py | sort -k1 | gzip -c > {}\n""".format(infile, threads, "{}_duplicate_counts.txt.gz".format(os.path.join(DUPLICATE_DIR, name))))
+                printp("""cat {} | starcode -d 0 -t {} | adjust_duplicates.py | sort -k1 > {}\n""".format(infile, threads, "{}_duplicate_counts.txt".format(os.path.join(DUPLICATE_DIR, name))))
                 index += 1
 
                 if LIMIT_IO and index % LIMIT_IO == 0:
@@ -296,16 +315,22 @@ def extract_barcodes():
     printp("""\n# drmr:label extract_raw_barcodes""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
-    index = 0
-
     for name, library in sorted(LIBRARIES.items()):
+        index = 0
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' not in files[0]:
-                printp("""extract_bc.py {} | gzip -c >> {}_raw_barcodes.txt.gz""".format(files[0], os.path.join(DUPLICATE_DIR, name)))
-                index += 1
-                if LIMIT_IO and index % LIMIT_IO == 0:
-                    # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
-                    printp("""\n# drmr:wait""")
+                if index == 0:
+                    printp("""extract_bc.py {} >> {}_raw_barcodes.txt""".format(files[0], os.path.join(DUPLICATE_DIR, name)))
+                    index += 1
+                    if LIMIT_IO and index % LIMIT_IO == 0:
+                        # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                        printp("""\n# drmr:wait""")
+                else:
+                    printp("""extract_bc.py {} >> {}_raw_barcodes.txt""".format(files[0], os.path.join(DUPLICATE_DIR, name)))
+                    index += 1
+                    if LIMIT_IO and index % LIMIT_IO == 0:
+                        # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
+                        printp("""\n# drmr:wait""")  
 
     printp("""\n# drmr:wait""")
 
@@ -320,7 +345,7 @@ def starcode_barcodes(threads=4):
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' not in files[0]:
                 infile = os.path.join(DUPLICATE_DIR, name)
-                printp("""zcat {}_raw_barcodes.txt.gz | starcode -d 0 -t {} | sort -k1 | gzip -c > {}_raw_barcodes_counts.txt.gz""".format(infile, threads, os.path.join(CDNA_DIR, name)))
+                printp("""cat {}_raw_barcodes.txt | starcode -d 0 -t {} | sort -k1 > {}_raw_barcodes_counts.txt""".format(infile, threads, os.path.join(CDNA_DIR, name)))
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
                     # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
@@ -345,7 +370,7 @@ def final_counts():
                 duplicate_barcodes = os.path.join(DUPLICATE_DIR, name)
                 output_file_path = os.path.join(CDNA_DIR, name)
 
-                printp("""get_final_counts.py -c {}_raw_barcodes_counts.txt.gz -d {}_duplicate_counts.txt.gz | gzip -c > {}_counts.txt.gz""".format(raw_barcodes, duplicate_barcodes,  output_file_path))
+                printp("""get_final_counts.py -c {}_raw_barcodes_counts.txt -d {}_duplicate_counts.txt > {}_counts.txt""".format(raw_barcodes, duplicate_barcodes,  output_file_path))
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
                     # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
@@ -365,7 +390,7 @@ def level():
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' not in files[0]:
-                filename = os.path.join(CDNA_DIR, "{}_counts.txt.gz".format(name))
+                filename = os.path.join(CDNA_DIR, "{}_counts.txt".format(name))
                 output_path = os.path.join(CDNA_DIR, name)
 
                 printp("""level.py --format tsv {}.ldb {}""".format(output_path, filename))
@@ -423,8 +448,8 @@ def assemble_table():
 
     paste.append(QC_BARCODE_COUNTS_FILE)
 
-    paste.append(""" | awk '{print $1,"\\t", $2, "\\t", $4, "\\t", $6, "\\t", $8}' | gzip -c > """)
-    paste.append(os.path.join(TABLE_DIR, 'final_counts_table.txt.gz'))
+    paste.append(""" | awk '{print $1,"\\t", $2, "\\t", $4, "\\t", $6, "\\t", $8}' > """)
+    paste.append(os.path.join(TABLE_DIR, 'final_counts_table.txt'))
 
     printp(' '.join(paste))
 
