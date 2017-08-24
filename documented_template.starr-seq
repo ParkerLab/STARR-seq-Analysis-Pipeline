@@ -57,6 +57,26 @@ LIMIT_IO = 0
 #
 
 LIBRARIES = {{LIBRARIES}}
+"""
+
+Essentially, the way that the dictionary is organized is (RG = readgroup):
+Sample1: RG1, RG2, RG3, RG4
+Sample2: RG1, RG2, RG3, RG4
+Sample3: RG1, RG2, RG3, RG4
+etc. etc. 
+The way that we want to iterate over these are: 
+
+Sample1: 
+dostuff(RG1) > RG1.txt
+dostuff(RG2) > RG2.txt
+dostuff(RG3) > RG3.txt
+dostuff(RG4) > RG4.txt
+cat RG1.txt RG2.txt RG3.txt RG4.txt > Sample1.txt
+
+And so on for the rest of the samples. This pattern of iteration underpins most (if not all) of the functions in this template.
+"""
+
+
 
 SAMPLES = {}
 for library in LIBRARIES.values():
@@ -228,7 +248,7 @@ def make_read_group_header(library, id):
 
 
 def get_qc_counts(threads=4):
-    mkdir(CDNA_DIR)
+    mkdir(CDNA_DIR) #Create the directory of CDNA and DNA counts.
 
     printp("""\n#\n# Get the qc counts for the constant sequences in DNA."""
            """\n# Prints out counts for barcodes in input library.""")
@@ -236,32 +256,67 @@ def get_qc_counts(threads=4):
     printp("""\n# drmr:label get_qc_counts\n#""")
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
     
-    catstring = 'cat '
+    catstring = 'cat ' #Used to create the string where all of the readgroup files are concatenated
     index = 0
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
+            
+            #This follows the pattern of iteration described near the top of the files
+            
             if 'inputDNA' in files[0]:
-                basename = os.path.join(CDNA_DIR, remove_path_and_extension(files[0]))
+                
+                #Checks if the words 'inputDNA' is in the filename. This is handled by starr_screname when handling the 
+                #sequencing core metadata files. To be sure that the files are renamed correctly, make sure that the word 
+                #"input" is in the description field of the sequencing core metadata files.
+                
+                basename = os.path.join(CDNA_DIR, remove_path_and_extension(files[0])) #Create the readgroup basename for the file readgroup.txt
                 printp("""DNA_counts_no_qc.py -f1 {} -f2 {} | starcode -t {} -d 0 | sort -k1 > {}.txt""".format(files[0], files[1], threads, basename))
+                
+                #DNA_counts_no_qc.py essentially just extracts the barcode from read 1 of the STARR-seq fastq files and feeds it into starcode.
+                #The counts are sorted before being input into their readgroup file
 
-    printp("""\n# drmr:wait""")
+    printp("""\n# drmr:wait""") #Wait for all readgroup files to be generated
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
-            dnacount = os.path.join(CDNA_DIR, '{}.txt'.format(remove_path_and_extension(files[0])))
-            if 'inputDNA' in files[0]:
-                catstring = '{} {}'.format(catstring, dnacount)
+            
+            #This follows the pattern of iteration described near the top of the files
+            
+            dnacount = os.path.join(CDNA_DIR, '{}.txt'.format(remove_path_and_extension(files[0]))) #This is the filename for the DNA counts for each readgroup created in the section just above.
+            if 'inputDNA' in files[0]: 
+                
+                #Again, checks if "inputDNA" is in the filename to ensure that these operations only occur on 
+                #input files and not sub-assemblies or cDNA. 
+                
+                catstring = '{} {}'.format(catstring, dnacount) #Concatenates all of the readgroup files from the inputDNA sample
     
-    printp("""\n{} > {}""".format(catstring, UNMERGED_QC_BARCODES_COUNTS_FILE))
+    printp("""\n{} > {}""".format(catstring, UNMERGED_QC_BARCODES_COUNTS_FILE))  #Concatenates all of the readgroup files from the inputDNA sample
 
     printp("""\n# drmr:wait""")
-    printp("""\ncat {} | starcode -t {} -d 0 | sort -k1 > {}""".format(UNMERGED_QC_BARCODES_COUNTS_FILE, threads, QC_BARCODE_COUNTS_FILE))
+    printp("""\ncat {} | starcode -t {} -d 0 | sort -k1 > {}""".format(UNMERGED_QC_BARCODES_COUNTS_FILE, threads, QC_BARCODE_COUNTS_FILE))  
+    
+    # Because there might be the same barcode in different readgroup files, we want that to be represented in the DNA counts file
+    # as only a SINGLE count. For example
+    """
+    RG1.txt
+    AAAAAAA  4
+    
+    ----------------------
+    RG2.txt  
+    AAAAAAA  7 
+    
+    ----------------------
+    inputDNA.txt 
+    AAAAAAA 11
+    """
+    # Thus, we run starcode one more time to collapse those counts into just one count corresponding to that barcode
+
     printp("""\n# drmr:wait""")
 
 
 def trim_barcodes_umis():
     """ Extracts the concatenated barcode and UMI. """
 
-    mkdir(DUPLICATE_DIR)
+    mkdir(DUPLICATE_DIR) # Make the directory to hold intermediate counts files when determining counts for each barcode
 
     printp("""\n#\n# extract barcode umi sequence from file\n#""")
     printp("""\n# drmr:label extract_pairs""")
@@ -270,10 +325,20 @@ def trim_barcodes_umis():
     for name, library in sorted(LIBRARIES.items()):
         index = 0
         for rg, files in sorted(library['readgroups'].items()):
-            if 'inputDNA' not in files[0]:
-                basename = os.path.join(DUPLICATE_DIR, remove_path_and_extension(files[0]))
+            
+            #Follows pattern of iteration described above.
+            
+            if 'inputDNA' not in files[0]: 
+                
+                #Ensures that this only occurs for cDNA files and NOT inputDNA files.
+                
+                basename = os.path.join(DUPLICATE_DIR, remove_path_and_extension(files[0])) #Creates the filename for the pairs files.
+                
                 printp("""trim_cdna.py --read1 {} --read3 {} > {}_pairs.txt""".format(files[0], files[1], basename), timed=True, ioniced=True)
-
+                
+                #The file trim_cDNA.py extracts the barcode and UMI as a single concatenated string and feeds it into the 
+                #readgroup_pairs.txt file.
+                
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
                     # limit the number of concurrent jobs to avoid thrashing the disk (set LIMIT_IO=False on clusters!)
@@ -281,14 +346,25 @@ def trim_barcodes_umis():
 
     printp("""\n# drmr:wait""")
     for name, library in sorted(LIBRARIES.items()):
-        catstring = 'cat '
+        
+        catstring = 'cat ' #String used to concatenate all of the readgroup files together
+        
         for rg, files in sorted(library['readgroups'].items()):
+            
+            #Follows pattern of iteration described above.
+            
             if 'inputDNA' not in files[0]:
+                
+                #Builds the catstring to include all of the filenames included in a sample.
+                
                 basename = os.path.join(DUPLICATE_DIR, remove_path_and_extension(files[0]))
                 catstring = '{} {}_pairs.txt'.format(catstring, basename)
+     
         if 'inputDNA' not in files[0]:
             output = os.path.join(DUPLICATE_DIR, name)
             printp("""\n{} > {}_pairs.txt""".format(catstring, output))
+            
+            #Concatenates all of the pairs files together
 
     printp("""\n# drmr:wait""")
 
@@ -300,15 +376,25 @@ def starcode_pairs(threads=4):
     printp("""\n# drmr:label starcode""")
     printp("""\n# drmr:job time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
 
-    mkdir(DUPLICATE_DIR)
+    mkdir(DUPLICATE_DIR) #Ensures that the duplicates directory is created
 
     for name, library in sorted(LIBRARIES.items()):
         index = 0
         for rg, files in sorted(library['readgroups'].items()):
-            printp('# ' + name)
-            infile = os.path.join(DUPLICATE_DIR, "{}_pairs.txt".format(name))
+            
+            #Follows pattern of iteration described above
+            
+            printp('# ' + name) #Labels the operations occurring for each sample.
+            
+            infile = os.path.join(DUPLICATE_DIR, "{}_pairs.txt".format(name)) #File containing the pairs
+      
             if 'inputDNA' not in files[0]:
-                printp("""cat {} | starcode -d 0 -t {} | adjust_duplicates.py | sort -k1 > {}\n""".format(infile, threads, "{}_duplicate_counts.txt".format(os.path.join(DUPLICATE_DIR, name))))
+                printp("""cat {} | starcode -d 0 -t {} | adjust_duplicates.py | starcode -d 0 -t {} | sort -k1 > {}\n""".format(infile, threads, threads, "{}_duplicate_counts.txt".format(os.path.join(DUPLICATE_DIR, name))))
+                
+                #Starcode counts the number of barcode/UMI strings because duplicate barcode/UMI pairs will then be counted. 
+                #Adjust duplicates makes it so that barcode/UMI strings where there were only 1 of a barcode/UMI string 
+                #are shown to have 0 duplicates for that barcode (because there was only 1 represented.
+                
                 index += 1
 
                 if LIMIT_IO and index % LIMIT_IO == 0:
@@ -329,12 +415,17 @@ def extract_barcodes():
             if 'inputDNA' not in files[0]:
                 basename = os.path.join(DUPLICATE_DIR, remove_path_and_extension(files[0]))
                 printp("""extract_bc.py {} > {}_raw_barcodes.txt""".format(files[0], basename))
+                
+                #This simply extracts the barcodes from read1 of the STARR-seq cDNA fastq files.
+                
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
                     # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
                     printp("""\n# drmr:wait""")
 
     printp("""\n# drmr:wait""")
+    
+    #Builds the catstring to include all files for a sample and concatenates them.
     for name, library in sorted(LIBRARIES.items()):
         catstring = 'cat '
         for rg, files in sorted(library['readgroups'].items()):
@@ -358,6 +449,9 @@ def starcode_barcodes(threads=4):
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' not in files[0]:
                 infile = os.path.join(DUPLICATE_DIR, name)
+                
+                #Using the raw_barcodes.txt file, this counts the raw counts for each barcode.
+                
                 printp("""cat {}_raw_barcodes.txt | starcode -d 0 -t {} | sort -k1 > {}_raw_barcodes_counts.txt""".format(infile, threads, os.path.join(CDNA_DIR, name)))
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
@@ -382,7 +476,13 @@ def final_counts():
                 raw_barcodes = os.path.join(CDNA_DIR, name)
                 duplicate_barcodes = os.path.join(DUPLICATE_DIR, name)
                 output_file_path = os.path.join(CDNA_DIR, name)
-
+                
+                #Each of the lines in duplicate_counts and raw_barcodes_counts files correspond because they both contain 
+                #every barcode for corresponding samples in sorted order. 
+                #Therefore, the counts in corresponding rows of the files correspond to the same barcode, 
+                #So to get the actual cDNA counts for a barcode, it is simply a matter of subtracting the count from the 
+                #line in duplicate_counts from the corresponding line in raw_barcodes_counts.
+                
                 printp("""get_final_counts.py -c {}_raw_barcodes_counts.txt -d {}_duplicate_counts.txt > {}_counts.txt""".format(raw_barcodes, duplicate_barcodes,  output_file_path))
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
@@ -405,7 +505,9 @@ def level():
             if 'inputDNA' not in files[0]:
                 filename = os.path.join(CDNA_DIR, "{}_counts.txt".format(name))
                 output_path = os.path.join(CDNA_DIR, name)
-
+                
+                #This creates leveldb databases for every counts file.
+                
                 printp("""level.py --format tsv {}.ldb {}""".format(output_path, filename))
                 index += 1
 
@@ -431,7 +533,11 @@ def level2():
             if 'inputDNA' not in files[0]:
                 db = os.path.join(CDNA_DIR, name)
                 outfile = os.path.join(TABLE_DIR, name)
-
+                
+                #This iterates through the input DNA counts file, and uses levelDB to lookup the corresponding 
+                #cDNA count for each replicate. This is a very fast and efficient process and barely took any time
+                #to run on Run_1890.
+                
                 printp("""level2.py {}.ldb {} | sort -k1 > {}_sorted_cdna_counts.txt""".format(db, QC_BARCODE_COUNTS_FILE, outfile))
                 index += 1
 
@@ -458,7 +564,12 @@ def assemble_table():
                 filename = "{}_sorted_cdna_counts.txt".format(table)
                 paste.append(filename)
             break
-
+        
+     
+    #This simply pastes together the counts for all of the inputDNA barcodes and then 
+    #prints out the final counts table using awk to access the corresponding columns to the counts
+    #in order of the samples.
+   
     paste.append(QC_BARCODE_COUNTS_FILE)
 
     paste.append(""" | awk '{print $1,"\\t", $2, "\\t", $4, "\\t", $6, "\\t", $8}' > """)
