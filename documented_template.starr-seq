@@ -158,6 +158,32 @@ def library_reference_genomes():
 def remove_path_and_extension(filename):
     return os.path.splitext(os.path.basename(filename))[0]
 
+def make_read_group_header(library, id):
+    read_group_components = {
+        'ID': '{}___{}'.format(library['library'], id),
+
+        # library
+        'LB': library['library'],
+
+        # sample
+        'SM': library['sample'],
+
+        # sequencing center name
+        'CN': library['sequencing_center'],
+
+        # ISO8601 date(time) of sequencing
+        'DT': library['sequencing_date'],
+
+        # platform (Illumina, Solid, etc. -- see the spec for valid values
+        'PL': library['sequencing_platform'],
+
+        # free-form description
+        'DS': library['description'].replace('\n', ' '),
+    }
+
+    header = """@RG\\t{}""".format('\\t'.join('{}:{}'.format(k, v) for k, v in sorted(read_group_components.items()) if v))
+
+    return header
 
 def get_qc_counts(threads=4):
     mkdir(CDNA_DIR) #Create the directory of CDNA and DNA counts.
