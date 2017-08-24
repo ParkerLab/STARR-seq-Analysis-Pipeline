@@ -308,7 +308,7 @@ def starcode_pairs(threads=4):
             printp('# ' + name)
             infile = os.path.join(DUPLICATE_DIR, "{}_pairs.txt".format(name))
             if 'inputDNA' not in files[0]:
-                printp("""cat {} | starcode -d 0 -t {} | adjust_duplicates.py | sort -k1 > {}\n""".format(infile, threads, "{}_duplicate_counts.txt".format(os.path.join(DUPLICATE_DIR, name))))
+                printp("""cat {} | starcode -d 0 -t {} | adjust_duplicates.py | starcode -d 0 -t {} | sort -k1 > {}\n""".format(infile, threads, threads,  "{}_duplicate_counts.txt".format(os.path.join(DUPLICATE_DIR, name))))
                 index += 1
 
                 if LIMIT_IO and index % LIMIT_IO == 0:
