@@ -63,10 +63,45 @@ for library in LIBRARIES.values():
     SAMPLES.setdefault(library['sample'], []).append(library)
 
 
+def maybe_gzip(filename, ioniced=False):
+    """Compress a file with gzip."""
+    template_data = {
+        'f': filename,
+        'ionice': ioniced and 'ionice -c 2 -n 7 ' or ''
+    }
+
+    command_template = """if [ -r "{f}" ]; then {ionice}gzip -f "{f}"; elif [ -r "{f}".gz ]; then echo '"{f}" already gzipped.'; fi"""
+
+    printp(command_template.format(**template_data))
+
+
 def mkdir(dir, mode=0o0750):
     """Construct a directory hierarchy using the given permissions."""
     if not os.path.exists(dir):
         os.makedirs(dir, mode)
+
+
+def open_maybe_gzipped(filename):
+    """
+    Open a possibly gzipped file.
+
+    Parameters
+    ----------
+    filename: str
+        The name of the file to open.
+
+    Returns
+    -------
+    file
+        An open file object.
+    """
+    with open(filename, 'rb') as test_read:
+        byte1, byte2 = test_read.read(1), test_read.read(1)
+        if byte1 and ord(byte1) == 0x1f and byte2 and ord(byte2) == 0x8b:
+            f = gzip.open(filename, mode='rt')
+        else:
+            f = open(filename, 'rt')
+    return f
 
 
 LEADING_WHITESPACE_RE = re.compile(r'^( +)*(\S.*)')
@@ -116,6 +151,11 @@ def symlink(source_path, dest_path, absolute=False):
             os.symlink(src, dest)
         return dest, dest_base
 
+
+def rename_fastq(fastq, suffix=''):
+    return FASTQ_RE.sub(fastq, suffix)
+
+
 def iterate_library_source_files(library_name):
     """Generates a list of the library's original files."""
     library = LIBRARIES[library_name]
@@ -128,6 +168,14 @@ def iterate_all_source_files():
     return itertools.chain(*[iterate_library_source_files(library_name) for library_name in sorted(LIBRARIES.keys())])
 
 
+def iterate_library_files(library_name):
+    """Generates a list of the library's files in DATA_PATH."""
+    library = LIBRARIES[library_name]
+    for rg, files in sorted(library['readgroups'].items()):
+        for f in sorted(files):
+            yield os.path.join(DATA_PATH, os.path.basename(f))
+
+
 def iterate_all_files():
     return itertools.chain(*[iterate_library_files(library_name) for library_name in sorted(LIBRARIES.keys())])
 
@@ -135,6 +183,18 @@ def iterate_all_files():
 def library_reference_genomes():
     return sorted(list(set(library['reference_genome'] for library_name, library in sorted(LIBRARIES.items()))))
 
+
+def libraries_by_genome():
+    libraries = {}
+    for genome in library_reference_genomes():
+        libraries[genome] = [library for library_name, library in sorted(LIBRARIES.items()) if library['reference_genome'] == genome]
+
+    # return genome, libraries for each genom
+    return sorted(libraries.items())
+
+
+def make_read_group_file(library_name, readgroup, suffix=''):
+    return '{library_name}___{readgroup}{suffix}'.format(**locals())
 
 def remove_path_and_extension(filename):
     return os.path.splitext(os.path.basename(filename))[0]
@@ -181,20 +241,25 @@ def get_qc_counts(threads=4):
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' in files[0]:
+                # basename for DNA counts file has format CDNA_DIR/basename(files[0]).txt
                 basename = os.path.join(CDNA_DIR, remove_path_and_extension(files[0]))
                 printp("""DNA_counts_no_qc.py -f1 {} -f2 {} | starcode -t {} -d 0 | sort -k1 > {}.txt""".format(files[0], files[1], threads, basename))
 
     printp("""\n# drmr:wait""")
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
+            # for all separate libraries, in CDNA_DIR, there is a separate counts file
+            # catstring is used to merge the files
             dnacount = os.path.join(CDNA_DIR, '{}.txt'.format(remove_path_and_extension(files[0])))
             if 'inputDNA' in files[0]:
                 catstring = '{} {}'.format(catstring, dnacount)
     
+    # cat all the separate DNA barcode counts together
     printp("""\n{} > {}""".format(catstring, UNMERGED_QC_BARCODES_COUNTS_FILE))
 
     printp("""\n# drmr:wait""")
-    printp("""\ncat {} | starcode -t {} -d 0 | sort -k1 > {}""".format(UNMERGED_QC_BARCODES_COUNTS_FILE, threads, QC_BARCODE_COUNTS_FILE))
+    # cluster all DNA barcode counts with an edit distance of 2 based upon presence in ALL libraries
+    printp("""\ncat {} | starcode -t {} -d 2 | sort -k1 > {}""".format(UNMERGED_QC_BARCODES_COUNTS_FILE, threads, QC_BARCODE_COUNTS_FILE))
     printp("""\n# drmr:wait""")
 
 
@@ -308,7 +373,7 @@ def starcode_barcodes(threads=4):
     printp("""\n# drmr:wait""")
 
 
-def final_counts():
+def final_counts(threads=4):
     mkdir(CDNA_DIR)
 
     printp("""\n#\n# get the final counts for the barcodes\n#""")
@@ -323,7 +388,7 @@ def final_counts():
                 duplicate_barcodes = os.path.join(DUPLICATE_DIR, name)
                 output_file_path = os.path.join(CDNA_DIR, name)
 
-                printp("""get_final_counts.py -c {}_raw_barcodes_counts.txt -d {}_duplicate_counts.txt > {}_counts.txt""".format(raw_barcodes, duplicate_barcodes,  output_file_path))
+                printp("""get_final_counts.py -c {}_raw_barcodes_counts.txt -d {}_duplicate_counts.txt | starcode -d 2 -t {} > {}_counts.txt""".format(raw_barcodes, duplicate_barcodes, threads, output_file_path))
                 index += 1
                 if LIMIT_IO and index % LIMIT_IO == 0:
                     # limit the number of concurrent jobs and avoid thrashing the disk (set LIMIT_IO=False on clusters!)
@@ -389,7 +454,8 @@ def assemble_table():
     printp("""\n# drmr:job time_limit=4h working_directory={}""".format(TABLE_DIR))
 
     paste = ['paste']
-
+    awk = ["""| awk '{print $1, "\\t", $2 """]
+    index = 4
     for name, library in sorted(LIBRARIES.items()):
         for rg, files in sorted(library['readgroups'].items()):
             if 'inputDNA' not in files[0]:
@@ -397,11 +463,16 @@ def assemble_table():
 
                 filename = "{}_sorted_cdna_counts.txt".format(table)
                 paste.append(filename)
+
+                awk.append(""","\\t", ${}""".format(index))
+                index += 2
+
             break
 
+    awk.append(""" }' > """)
     paste.append(QC_BARCODE_COUNTS_FILE)
 
-    paste.append(""" | awk '{print $1,"\\t", $2, "\\t", $4, "\\t", $6, "\\t", $8}' > """)
+    paste.extend(awk)
     paste.append(os.path.join(TABLE_DIR, 'final_counts_table.txt'))
 
     printp(' '.join(paste))
