@@ -23,7 +23,7 @@ In order for mka to run correctly, a bit of setup is necessary to encode metadat
 Next, run the command:
 
 ```
-starr_screname_custom analysis_name /path/to/metadata.csv /path/to/data/directories /path/to/data/destination
+starr_screname_custom analysis_name /path/to/metadata.csv /path/to/data/directory /path/to/data/destination
 ```
 
 Provided the right format for the csv, this will create a data directory with files that have symbolic links with ```mka's``` naming conventions to the correct data files. Here are the example contents of the directory:
