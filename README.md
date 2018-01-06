@@ -59,5 +59,5 @@ and the job scheduler will handle the tasks associated with the pipeline.
 # Finding Results
 The final counts table can be found in 
 ```
-/path/to/analysis/work/final_counts_table.txt.gz
+/path/to/analysis/work/count_table/final_counts_table.txt.gz
 ```
