@@ -10,9 +10,33 @@ loadmodule starrseq
 ```
 
 # Renaming the input files
-The sequencing core should povide metadata in the form of a .csv file alongside the fastq files. To ensure that the fastq files containing the input DNA are correctly labeled and handled by the pipeline, the description for each of the input DNA files within the .csv should contain the word "input". Once this condition is met, run the command 
+In order for mka to run correctly, a bit of setup is necessary to encode metadata in the name of the files such that ```mka``` knows how to iterate over the files. To do this, a simple csv must be written that has metadata about the information. Here is an example csv file (make sure read 1 comes first, read 3 comes second):
+
 ```
-starr_screname /path/to/metadata.csv /path/to/sample/directories /path/to/data/destination
+       inputDNA     ,       rep1       ,        rep2       ,  ....
+       
+      inputDNA.read1.fq.gz   ,   rep1.read1.fq.gz  ,   rep2.read1.fq.gz  , ....
+
+      inputDNA.read3.fq.gz   ,   rep1.read3.fq.gz  ,   rep2.read3.fq.gz  , ....
+```
+
+Next, run the command:
+
+```
+starr_screname_custom analysis_name /path/to/metadata.csv /path/to/data/directories /path/to/data/destination
+```
+
+Provided the right format for the csv, this will create a data directory with files that have symbolic links with ```mka's``` naming conventions to the correct data files. Here are the example contents of the directory:
+
+```
+lrwxrwxrwx  1 collinwa parkerlab-users 84 Jan  1 18:05 83213_modSTARRseq_121917___inputDNA___L001___inputDNA.1.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/scp1-STARRseq_inputDNA_120717.read1.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 84 Jan  1 18:05 83213_modSTARRseq_121917___inputDNA___L001___inputDNA.2.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/scp1-STARRseq_inputDNA_120717.read3.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:05 83213_modSTARRseq_121917___rep1___L001___rep1.1.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/83213_scp1-STARRseq_cDNA_rep_1.read1.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:05 83213_modSTARRseq_121917___rep1___L001___rep1.2.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/83213_scp1-STARRseq_cDNA_rep_1.read3.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:05 83213_modSTARRseq_121917___rep2___L001___rep2.1.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/83213_scp1-STARRseq_cDNA_rep_2.read1.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:10 83213_modSTARRseq_121917___rep2___L001___rep2.2.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/83213_scp1-STARRseq_cDNA_rep_2.read3.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:05 83213_modSTARRseq_121917___rep3___L001___rep3.1.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/83213_scp1-STARRseq_cDNA_rep_3.read1.fq.gz
+lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:05 83213_modSTARRseq_121917___rep3___L001___rep3.2.fq.gz -> /home/ykyono/data/83213_modSTARRseq_121917/83213_scp1-STARRseq_cDNA_rep_3.read3.fq.gz
 ```
 
 # Generating the pipeline
