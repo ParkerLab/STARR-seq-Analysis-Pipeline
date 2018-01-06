@@ -40,13 +40,13 @@ lrwxrwxrwx  1 collinwa parkerlab-users 85 Jan  1 18:05 83213_modSTARRseq_121917_
 ```
 
 # Generating the pipeline
-Once the files are renamed, mka is ready to be run. When running mka, make sure that only the fastq files containing cDNA and DNA are specified, and not sub-assemblies. The pipeline is currently equipped to create count tables for exactly 3 replicates, though it will be updated to handle more or less than 3 replicates soon. If you need more than 3 replicates, you can run the counts in batches of 3. If you need less than 3 replicates, you can put in the same library twice, and simply remove the extra column from the count table once finished. To set up the pipeline, do the following: 
+Once the files are renamed, mka is ready to be run. When running mka, make sure that only the fastq files containing cDNA and DNA are specified, and not sub-assemblies. The pipeline is currently equipped to create count tables for any number of replicates, as long as those replicates have the necessary metadata encoded in the filenames and are located in ```/path/to/dna_cdna/fq_files/*``` via the previous command. Set the reference genome as ```hg19```.
 ```
 mka --analysis-type  starr-seq --description 'Random STARR-seq pipeline' -a /path/to/analysis /path/to/control /path/to/dna_cdna/fq_files/*
 ```
 
 # Making and running the pipeline
-Once the commands file is generated, switch to the commands directory and run the command, then specify the reference genome as hg19. Set IONICE to the maximum number of commands that you wish to have running concurrently (probably ok to leave at 0):
+Set IONICE = 1 to limit read/write. The pipeline is very lightweight and this step is probably unnecessary. To run the pipeline, go to the control directory. There will be 2 files ```commands``` and ```Makefile```. When in this directory, use the following command to build the pipeline:
 ```
 make pipeline
 ```
@@ -54,7 +54,8 @@ Finally, go to the analysis directory and run the command:
 ```
 drmr pipeline
 ```
-and the job scheduler will handle the tasks associated with the pipeline. 
+and the job scheduler will handle the tasks associated with the pipeline. You can check to see if the commands have been queued using the command: 
+```squeue -u YOUR_USERNAME | grep pipeline```
 
 # Finding Results
 The final counts table can be found in 
