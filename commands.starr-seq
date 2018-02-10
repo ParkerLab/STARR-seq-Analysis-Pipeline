@@ -234,7 +234,7 @@ def get_qc_counts(threads=4):
            """\n# Prints out counts for barcodes in input library.""")
 
     printp("""\n# drmr:label get_qc_counts\n#""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(CDNA_DIR))
     
     catstring = 'cat '
     index = 0
@@ -270,7 +270,7 @@ def trim_barcodes_umis():
 
     printp("""\n#\n# extract barcode umi sequence from file\n#""")
     printp("""\n# drmr:label extract_pairs""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
     for name, library in sorted(LIBRARIES.items()):
         index = 0
@@ -303,7 +303,7 @@ def starcode_pairs(threads=4):
 
     printp("""\n#\n# run starcode on trimmed data\n#""")
     printp("""\n# drmr:label starcode""")
-    printp("""\n# drmr:job time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=1h working_directory={}""".format(DUPLICATE_DIR))
 
     mkdir(DUPLICATE_DIR)
 
@@ -326,7 +326,7 @@ def starcode_pairs(threads=4):
 def extract_barcodes():
     printp("""\n#\n# get the raw barcodes counts from the cDNA\n#""")
     printp("""\n# drmr:label extract_raw_barcodes""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
     for name, library in sorted(LIBRARIES.items()):
         index = 0
@@ -356,7 +356,7 @@ def extract_barcodes():
 def starcode_barcodes(threads=4):
     printp("""\n#\n# run starcode to count raw barcodes\n#""")
     printp("""\n# drmr:label starcode_raw_barcodes""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
 
     index = 0
     for name, library in sorted(LIBRARIES.items()):
@@ -378,7 +378,7 @@ def final_counts(threads=4):
 
     printp("""\n#\n# get the final counts for the barcodes\n#""")
     printp("""\n# drmr:label get_final_counts\n#""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(DUPLICATE_DIR))
     index = 0
 
     for name, library in sorted(LIBRARIES.items()):
@@ -401,7 +401,7 @@ def final_counts(threads=4):
 def level():
     printp("""\n#\n# create leveldb databases out of the cDNA counts files \n#""")
     printp("""\n# drmr:label level\n#""")
-    printp("""\n# drmr:job time_limit=2h working_directory={}""".format(CDNA_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=2h working_directory={}""".format(CDNA_DIR))
 
     index = 0
 
@@ -425,7 +425,7 @@ def level():
 def level2():
     printp("""\n#\n# count representation of input DNA library barcodes in cDNA \n#""")
     printp("""\n# drmr:label level_lookup\n#""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(CDNA_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(CDNA_DIR))
 
     index = 0
 
@@ -451,7 +451,7 @@ def level2():
 def assemble_table():
     printp("""\n#\n# assemble the final table \n#""")
     printp("""\n# drmr:label final_table\n#""")
-    printp("""\n# drmr:job time_limit=4h working_directory={}""".format(TABLE_DIR))
+    printp("""\n# drmr:job memory=20000 time_limit=4h working_directory={}""".format(TABLE_DIR))
 
     paste = ['paste']
     awk = ["""| awk '{print $1, "\\t", $2 """]
