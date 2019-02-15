@@ -4,7 +4,7 @@ This project contains a STARR-seq analysis pipeline based on the tool ```mka```,
 # Getting Started
 In order to run the pipeline if you're on the lab server, you must load the ```starrseq``` and ```starcode``` modules, while also either sourcing ```/lab/sw/bin/pl``` or preceding the mka command with ```MKA_TEMPLATES = /lab/sw/lib/mka/templates```. The reason for the extra steps is that in its current state, the pipeline is not very general and thus the files reside in the lab's directory for custom templates. Regardless, the necessary imports can all be handled automatically by adding the following to your ```.bashrc``` and restarting the shell:
 ```
-loadmodule starrcode
+loadmodule starcode
 loadmodule starrseq 
 . /lab/sw/bin/pl
 ```
